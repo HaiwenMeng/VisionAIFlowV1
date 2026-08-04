@@ -14,11 +14,19 @@ Plan模式下生成的计划应该用中文写，不要用英文。
 
 <3> 编译环境：
 
-Qt 6.7.3：F:\Qt6.7.3\6.7.3\msvc2019_64
+Qt 6.7.3：F:\Qt6.7.3\6.7.3\msvc2019_64\bin\qmake.exe
 
 MSVC 2019：19.29 x64
 
 Kit：唯一默认 Kit  QT673_MSVC2019
+
+VS2019 初始化脚本：
+
+```
+D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat amd64
+```
+
+初始化参数： amd64
 
 请使用 MSVC 编译链，不要使用 MinGW。
 
