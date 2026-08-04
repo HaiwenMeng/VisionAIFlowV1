@@ -1,0 +1,29 @@
+# Build and IDE output
+/out/
+/build/
+/.qtc_clangd/
+*.pro.user
+/.vaf_checkpoint_*/
+/.vaf_label_transaction_*/
+/vaf_project_lock_*/
+/vaf_project_store_*/
+/.vs/
+/.vscode/
+/.qmake.stash
+/CMakeUserPresets.json
+/CMakeSettings.json
+
+# Runtime logs and generated artifacts
+*.log
+*.engine
+*.onnx
+*.pt
+*.pth
+*.pdparams
+*.ckpt
+*.zip
+
+# User data and model packages
+/data/
+/models/
+/projects/

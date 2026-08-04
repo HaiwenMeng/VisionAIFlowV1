@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "projectId", "name", "projectType", "classificationMode", "createdUtc"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "projectId": { "type": "string", "format": "uuid" },
+    "name": { "type": "string", "minLength": 1 },
+    "projectType": { "enum": ["detection", "classification", "instance_segmentation", "semantic_segmentation", "anomaly_detection", "line_detection", "ocr_detection", "ocr_recognition", "ocr_pipeline"] },
+    "classificationMode": { "enum": ["", "single_label", "multi_label"] },
+    "createdUtc": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    { "if": { "properties": { "projectType": { "const": "classification" } } }, "then": { "properties": { "classificationMode": { "enum": ["single_label", "multi_label"] } } } },
+    { "if": { "properties": { "projectType": { "not": { "const": "classification" } } } }, "then": { "properties": { "classificationMode": { "const": "" } } } }
+  ],
+  "additionalProperties": false
+}

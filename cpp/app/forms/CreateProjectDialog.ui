@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CreateProjectDialog</class>
+ <widget class="QDialog" name="CreateProjectDialog">
+  <property name="windowTitle"><string>创建项目</string></property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item><layout class="QFormLayout" name="formLayout">
+    <item row="0" column="0"><widget class="QLabel" name="nameLabel"><property name="text"><string>项目名称</string></property></widget></item>
+    <item row="0" column="1"><widget class="QLineEdit" name="nameEdit"/></item>
+    <item row="1" column="0"><widget class="QLabel" name="typeLabel"><property name="text"><string>项目类型</string></property></widget></item>
+    <item row="1" column="1"><widget class="QComboBox" name="projectTypeComboBox">
+     <item><property name="text"><string>目标检测</string></property><property name="userData"><string>detection</string></property></item>
+     <item><property name="text"><string>图像分类</string></property><property name="userData"><string>classification</string></property></item>
+     <item><property name="text"><string>实例分割</string></property><property name="userData"><string>instance_segmentation</string></property></item>
+     <item><property name="text"><string>语义分割</string></property><property name="userData"><string>semantic_segmentation</string></property></item>
+     <item><property name="text"><string>异常检测</string></property><property name="userData"><string>anomaly_detection</string></property></item>
+     <item><property name="text"><string>线段检测</string></property><property name="userData"><string>line_detection</string></property></item>
+     <item><property name="text"><string>OCR 检测</string></property><property name="userData"><string>ocr_detection</string></property></item>
+     <item><property name="text"><string>OCR 识别</string></property><property name="userData"><string>ocr_recognition</string></property></item>
+     <item><property name="text"><string>OCR 流水线</string></property><property name="userData"><string>ocr_pipeline</string></property></item>
+    </widget></item>
+    <item row="2" column="0"><widget class="QLabel" name="classificationLabel"><property name="text"><string>分类模式</string></property></widget></item>
+    <item row="2" column="1"><widget class="QComboBox" name="classificationModeComboBox"><item><property name="text"><string>单标签</string></property><property name="userData"><string>single_label</string></property></item><item><property name="text"><string>多标签</string></property><property name="userData"><string>multi_label</string></property></item></widget></item>
+    <item row="3" column="0"><widget class="QLabel" name="rootLabel"><property name="text"><string>项目父目录</string></property></widget></item>
+    <item row="3" column="1"><layout class="QHBoxLayout" name="rootLayout"><item><widget class="QLineEdit" name="rootEdit"/></item><item><widget class="QPushButton" name="browseButton"><property name="text"><string>浏览</string></property></widget></item></layout></item>
+   </layout></item>
+   <item><widget class="QDialogButtonBox" name="buttonBox"><property name="standardButtons"><set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set></property></widget></item>
+  </layout>
+ </widget>
+ <resources/><connections/>
+</ui>

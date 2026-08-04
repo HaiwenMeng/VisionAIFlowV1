@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 2,
+  "depsRoot": "F:/VisionAIFlowDeps",
+  "verificationPolicy": "Offline only. Each downloaded archive is SHA-256 locked before use. TensorRT and OpenVINO are user-provided external SDK roots and are verified by their version headers.",
+  "dependencies": [
+    { "id": "libtorch-release", "version": "2.7.1-cu118", "relativePath": "libtorch/2.7.1-cu118/release", "archive": "archives/libtorch-win-shared-with-deps-2.7.1+cu118.zip", "sha256": "186aa930c1510482153be939e573937fc6682ad527ba86500f50266c8f418428", "license": "BSD-style", "status": "sha256-verified" },
+    { "id": "libtorch-debug", "version": "2.7.1-cu118", "relativePath": "libtorch/2.7.1-cu118/debug", "archive": "archives/libtorch-win-shared-with-deps-debug-2.7.1+cu118.zip", "sha256": "4da85d261268cef0b84f122ce518e9eac232ab515c3f89655d89a3ac029052b3", "license": "BSD-style", "status": "sha256-verified" },
+    { "id": "tensorrt", "version": "10.0.1.6-cuda11.8", "externalRoot": "E:/TensorRT-10.0.1.6", "versionFile": "include/NvInferVersion.h", "runtimeFiles": ["lib/nvinfer_10.dll", "lib/nvonnxparser_10.dll"], "sha256": "5a968e09596bf9e4cd0da05e360cd98ff1ce53cf923bbbca592a80029746a13f", "license": "NVIDIA TensorRT EULA", "status": "user-provided-sdk-verified" },
+    { "id": "openvino", "version": "2025.3.0", "externalRoot": "F:/VisionAIFlowDeps/openvino2025.3.0", "versionFile": "include/openvino/core/version.hpp", "runtimeFiles": ["bin/openvino.dll", "bin/openvino_onnx_frontend.dll", "bin/openvino_intel_cpu_plugin.dll", "bin/tbb12.dll"], "sha256": "a31aa962fb9e9457bb4d1cab328435d25af67ed4dc3a1175fb01f5d314e6e988", "license": "Apache-2.0", "status": "user-provided-sdk-verified" },
+    { "id": "opencv", "version": "4.12.0", "relativePath": "opencv/4.12.0", "archive": "archives/opencv-4.12.0.zip", "sha256": "fa3faf7581f1fa943c9e670cf57dd6ba1c5b4178f363a188a2c8bff1eb28b7e4", "license": "Apache-2.0", "status": "sha256-verified" },
+    { "id": "onnx", "version": "1.15.0", "relativePath": "src/onnx-1.15.0", "archive": "archives/onnx-1.15.0.zip", "sha256": "b95ea88b32ea9b58d231bf4461d10ab4bd1c05430c06ee8cae20f04185e84b27", "license": "MIT", "status": "sha256-verified" },
+    { "id": "protobuf", "version": "3.20.3", "relativePath": "src/protobuf-3.20.3-cpp", "archive": "archives/protobuf-cpp-3.20.3.zip", "sha256": "2c65db747b0fec51e84480b7092aaff88b072fb27f9187073a219e09bb748bdf", "license": "BSD-3-Clause", "status": "sha256-verified" },
+    { "id": "nlohmann_json", "version": "3.12.0", "relativePath": "nlohmann_json/3.12.0", "archive": "archives/json-3.12.0.zip", "sha256": "34660b5e9a407195d55e8da705ed26cc6d175ce5a6b1fb957e701fb4d5b04022", "license": "MIT", "status": "sha256-verified" },
+    { "id": "spdlog", "version": "1.15.3", "relativePath": "src/spdlog-1.15.3", "archive": "archives/spdlog-1.15.3.zip", "sha256": "b74274c32c8be5dba70b7006c1d41b7d3e5ff0dff8390c8b6390c1189424e094", "license": "MIT", "status": "sha256-verified" },
+    { "id": "googletest", "version": "1.17.0", "relativePath": "src/googletest-1.17.0", "archive": "archives/googletest-1.17.0.zip", "sha256": "40d4ec942217dcc84a9ebe2a68584ada7d4a33a8ee958755763278ea1c5e18ff", "license": "BSD-3-Clause", "status": "sha256-verified" }
+  ]
+}

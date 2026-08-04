@@ -1,0 +1,7 @@
+{
+  "product": "VisionAIFlowV1",
+  "version": "0.1.0",
+  "protocolVersion": 1,
+  "onnxOpset": 12,
+  "onnxIrVersion": 9
+}

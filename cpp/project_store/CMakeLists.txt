@@ -1,0 +1,5 @@
+add_library(vaf_project_store STATIC src/ProjectDefinition.cpp src/ProjectStore.cpp src/DatasetIndex.cpp src/ProjectLock.cpp src/ProjectMigration.cpp src/LabelStore.cpp)
+add_library(vaf::project_store ALIAS vaf_project_store)
+target_include_directories(vaf_project_store PUBLIC include)
+target_link_libraries(vaf_project_store PUBLIC vaf::foundation Qt6::Core)
+target_compile_features(vaf_project_store PUBLIC cxx_std_20)

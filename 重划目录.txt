@@ -1,0 +1,54 @@
+repoRoot
+   |── 3rdPart(onnx、openvino、Protobuf、tensorrt、opencv 等第三方依赖库)
+   ├── Core # 各种底层库、协议
+   |    ├── foundation # 全工程最底层静态库，提供 Error、ErrorCode 和 Result<T> 统一错误契约。
+   |    |   └── .h/.cpp 
+   |    ├── domain # 领域状态静态库
+   |    ├── annotation # 标注领域静态库
+   |    ├── model_graph # 模型图静态库
+   |    ├── tensor # 张量与计算资源静态库
+   |    ├── models_common # 模型公共静态库
+   |    ├── model_graph
+   |    └── tensor
+   ├── CoreTools # Core子文件的所有test工具
+   |    ├── foundation_tests 
+   |    ├── domain_tests 
+   |    ├── annotation_tests
+   |    ├── annotation_store_tests
+   |    ├── annotation_history_tests
+   |    ├── model_graph_tests
+   |    └──  tensor_tests
+   ├── HostDrivers 
+   |    ├── ipc # 进程间通信静态库
+   |    ├── qt_foundation # Qt Host 公共运行时静态库
+   |    ├── ipc_tests # 验证 IPC 帧编码/拆包、非法帧处理和请求 ID 跟踪行为。
+   |    ├── qt_foundation # Qt Host 公共运行时静态库
+   |    ├── project_store # 项目持久化静态库
+   |    ├── project_store_tests # 验证项目创建、加载、锁、迁移、数据集索引和标签存储。  
+   |    ├── trainer_host # 训练进程 VisionTrainerHost.exe
+   |    ├── tensorrt_host # TensorRT推理进程 VisionTensorRtHost.exe
+   |    └── openvino_host # OpenVINO 推理进程 VisionOpenVinoHost.exe
+   ├── FlowBaseFrame # 工作流框架
+   |    ├── training # LibTorch 训练静态库
+   |    ├── export # 模型导出静态库
+   |    ├── training_tests # 验证 LibTorch 线性分类器的训练、指标和失败路径。
+   |    ├── tensor_dataloader_tests # 验证 TensorDataLoader 的批处理、确定性和参数校验。
+   |    └── openvino_host # OpenVINO 推理进程 VisionOpenVinoHost.exe
+   ├── MainApp 
+   |    ├── app # 主 GUI 程序 VisionAIFlow.exe
+   |    ├── cli # 命令行程序 VisionAIFlowCli.exe
+   |    ├── project_store
+   |    ├── trainer_host
+   |    ├── tensorrt_host
+   |    └── openvino_host
+   ├── Models（各类模型的基类、各类模型的继承实现代码）
+   |    ├── Detect # 
+   |    |     ├── Yolo11Detect 
+   |    |     └── RFDert 
+   |    ├── Seg # 命令行程序 VisionAIFlowCli.exe
+   |    ├── OCR
+   |    ├── Classify
+   |    ├── MLSD
+   |    └── Anormaly
+   └── BINX64 # 所有编译输出的目录
+
