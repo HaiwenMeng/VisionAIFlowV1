@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>YtRoiShowDisp.png</file>
+    </qresource>
+</RCC>

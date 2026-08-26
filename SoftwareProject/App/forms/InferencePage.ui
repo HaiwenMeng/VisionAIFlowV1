@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InferencePage</class>
+ <widget class="QWidget" name="InferencePage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="titleLabel">
+     <property name="font">
+      <font><pointsize>16</pointsize><bold>true</bold></font>
+     </property>
+     <property name="text"><string>OpenVINO 推理</string></property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="modelLayout">
+     <item><widget class="QLabel" name="modelLabel"><property name="text"><string>ONNX 模型</string></property></widget></item>
+     <item><widget class="QLineEdit" name="modelPathEdit"/></item>
+     <item><widget class="QPushButton" name="browseModelButton"><property name="text"><string>选择模型</string></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="imageLayout">
+     <item><widget class="QLabel" name="imageLabel"><property name="text"><string>项目图片</string></property></widget></item>
+     <item><widget class="QComboBox" name="imageComboBox"/></item>
+     <item><widget class="QPushButton" name="startInferenceButton"><property name="text"><string>开始推理</string></property></widget></item>
+    </layout>
+   </item>
+   <item><widget class="QLabel" name="statusLabel"><property name="wordWrap"><bool>true</bool></property><property name="text"><string>请选择 ONNX 模型和项目图片。</string></property></widget></item>
+   <item>
+    <widget class="QLabel" name="previewLabel">
+     <property name="minimumSize"><size><width>640</width><height>360</height></size></property>
+     <property name="alignment"><set>Qt::AlignCenter</set></property>
+     <property name="scaledContents"><bool>true</bool></property>
+     <property name="text"><string>推理图片预览</string></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="detectionTable">
+     <property name="columnCount"><number>6</number></property>
+     <property name="rowCount"><number>0</number></property>
+     <column><property name="text"><string>类别</string></property></column>
+     <column><property name="text"><string>置信度</string></property></column>
+     <column><property name="text"><string>x1</string></property></column>
+     <column><property name="text"><string>y1</string></property></column>
+     <column><property name="text"><string>x2</string></property></column>
+     <column><property name="text"><string>y2</string></property></column>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

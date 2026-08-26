@@ -10,10 +10,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$requiredCompilerRoot = 'F:\VS2022\BuildTools\VC\Tools\MSVC\14.36.32532'
-$cmake = 'F:\Qt6.9.2\Tools\CMake_64\bin\cmake.exe'
-if (-not (Test-Path -LiteralPath $requiredCompilerRoot)) { throw "Frozen compiler directory is missing: $requiredCompilerRoot" }
-if (-not (Test-Path -LiteralPath $cmake)) { throw "CMake 3.30.5 is missing: $cmake" }
+$requiredCompilerRoot = 'D:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133'
+$cmake = 'F:\Qt6.7.3\Tools\CMake_64\bin\cmake.exe'
+if (-not (Test-Path -LiteralPath $requiredCompilerRoot)) { throw "MSVC 2019 14.29 compiler directory is missing: $requiredCompilerRoot" }
+if (-not (Test-Path -LiteralPath $cmake)) { throw "Qt 6.7.3 CMake is missing: $cmake" }
 if (-not (Test-Path -LiteralPath $DepsRoot -PathType Container)) { throw "Dependency root does not exist: $DepsRoot" }
 
 $sourceRoot = Join-Path $DepsRoot 'src'
@@ -42,7 +42,7 @@ foreach ($project in $projects) {
     }
     $buildDirectory = if ($project.ContainsKey('BuildDirectory')) { [string]::Format($project.BuildDirectory, $Configuration) } else { "$($project.Name)-$($project.Version)-$Configuration" }
     $build = Join-Path $DepsRoot ("build\$buildDirectory")
-    $configureArgs = @('-S', $source, '-B', $build, '-G', 'Visual Studio 17 2022', '-A', 'x64', '-T', 'v143,version=14.36.17.6', "-DCMAKE_INSTALL_PREFIX=$installPrefix", "-DCMAKE_BUILD_TYPE=$Configuration", "-DCMAKE_MSVC_RUNTIME_LIBRARY=$runtimeLibrary") + $project.ExtraArgs
+    $configureArgs = @('-S', $source, '-B', $build, '-G', 'Visual Studio 16 2019', '-A', 'x64', '-T', 'v142,version=14.29.30133', "-DCMAKE_INSTALL_PREFIX=$installPrefix", "-DCMAKE_BUILD_TYPE=$Configuration", "-DCMAKE_MSVC_RUNTIME_LIBRARY=$runtimeLibrary") + $project.ExtraArgs
     & $cmake @configureArgs
     if ($LASTEXITCODE -ne 0) { throw "$($project.Name) configuration failed; build directory: $build" }
     & $cmake --build $build --config $Configuration --parallel

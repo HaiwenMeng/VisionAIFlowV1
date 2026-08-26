@@ -1,9 +1,9 @@
 param(
     [string]$BuildRoot = "out/qmake/Release",
     [string]$StageRoot = "out/stage/VisionAIFlowV1-qmake-Release",
-    [string]$QtRoot = "F:/Qt6.9.2/6.9.2/msvc2022_64",
-    [string]$BuildToolsRoot = "F:/VS2022/BuildTools",
-    [string]$MsvcVersion = "14.36.32532",
+    [string]$QtRoot = "F:/Qt6.7.3/6.7.3/msvc2019_64",
+    [string]$BuildToolsRoot = "D:/Program Files (x86)/Microsoft Visual Studio/2019/Community",
+    [string]$MsvcVersion = "14.29.30133",
     [string]$LibTorchRoot = "F:/VisionAIFlowDeps/libtorch/2.7.1-cu118/release",
     [string]$CudaRoot = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.8",
     [string]$TensorRtRoot = "E:/TensorRT-10.0.1.6",
@@ -88,11 +88,8 @@ foreach ($dependency in $lock.dependencies) {
 New-Item -ItemType Directory -Path $stage | Out-Null
 
 $executables = @(
-    'VisionAIFlow.exe',
-    'VisionAIFlowCli.exe',
-    'VisionTrainerHost.exe',
-    'VisionTensorRtHost.exe',
-    'VisionOpenVinoHost.exe'
+    'App.exe',
+    'Cli.exe'
 )
 
 foreach ($exe in $executables) {

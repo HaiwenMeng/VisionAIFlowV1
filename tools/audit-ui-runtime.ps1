@@ -1,7 +1,7 @@
 param(
     [string]$ExecutablePath = "out/qmake/Release/bin/VisionAIFlow.exe",
-    [string]$BuildToolsRoot = "F:/VS2022/BuildTools",
-    [string]$MsvcVersion = "14.36.32532"
+    [string]$BuildToolsRoot = "D:/Program Files (x86)/Microsoft Visual Studio/2019/Community",
+    [string]$MsvcVersion = "14.29.30133"
 )
 
 $ErrorActionPreference = 'Stop'

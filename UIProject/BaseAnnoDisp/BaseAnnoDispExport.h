@@ -1,0 +1,12 @@
+#ifndef BASEANNODISP_EXPORT_H
+#define BASEANNODISP_EXPORT_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(BASE_ANNODISP_LIBRARY)
+#define BASE_ANNODISP_EXPORT Q_DECL_EXPORT
+#else
+#define BASE_ANNODISP_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // BASEANNODISP_EXPORT_H

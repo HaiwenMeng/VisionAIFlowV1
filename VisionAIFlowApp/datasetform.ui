@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DataSetForm</class>
+ <widget class="QWidget" name="DataSetForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1006</width>
+    <height>840</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,0">
+   <property name="leftMargin">
+    <number>3</number>
+   </property>
+   <property name="topMargin">
+    <number>3</number>
+   </property>
+   <property name="rightMargin">
+    <number>3</number>
+   </property>
+   <property name="bottomMargin">
+    <number>3</number>
+   </property>
+   <property name="spacing">
+    <number>3</number>
+   </property>
+   <item row="1" column="1" rowspan="2">
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QGridLayout" name="gridLayout" rowstretch="1,8,1,1,8,1,0" columnstretch="1,1,2">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <property name="spacing">
+       <number>3</number>
+      </property>
+      <item row="0" column="1" colspan="2">
+       <widget class="QLineEdit" name="LE_CurentProName">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="LBShow">
+        <property name="text">
+         <string>当前项目</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="comboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>矩形目标识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>旋转矩形识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>语义分割识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>图象分类识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>条状字符识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>字符位置识别</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>图像线段检测</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="6" column="0" colspan="3">
+       <widget class="QPushButton" name="PB_ViewPos">
+        <property name="text">
+         <string>转到目录查看</string>
+        </property>
+        <property name="icon">
+         <iconset resource="YtSRes.qrc">
+          <normaloff>:/ResourYolo/Selfbutton/转到目录.png</normaloff>:/ResourYolo/Selfbutton/转到目录.png</iconset>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="PB_RunDataGen">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>启动数据生成</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>数据类型</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="3">
+       <widget class="QTableWidget" name="TW_LabeSet">
+        <column>
+         <property name="text">
+          <string>序号</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>名称</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>训练数量</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>测试数量</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>背景数量</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="4" column="0" rowspan="2" colspan="2">
+       <widget class="QTreeWidget" name="ToolTreeWidget">
+        <column>
+         <property name="text">
+          <string notr="true">1</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="4" column="2" rowspan="2">
+       <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowDisp"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>图象查看</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="PB_RunDataAppend">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>启动数据增广</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="2">
+    <widget class="QLabel" name="LB_Title">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font: 18pt &quot;微软雅黑&quot;;</string>
+     </property>
+     <property name="text">
+      <string>数据管理</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>BaseAnnoLegacyCanvas</class>
+   <extends>QWidget</extends>
+   <header>baseannolegacycanvas.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="YtSRes.qrc"/>
+ </resources>
+ <connections/>
+</ui>

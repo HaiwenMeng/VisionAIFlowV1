@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ProJectForm</class>
+ <widget class="QWidget" name="ProJectForm">
+  <property name="windowTitle"><string>项目管理</string></property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item><widget class="QLabel" name="LB_Title"><property name="text"><string>项目管理</string></property><property name="styleSheet"><string notr="true">font: 18pt &quot;Microsoft YaHei UI&quot;;</string></property></widget></item>
+   <item><widget class="QSplitter" name="splitter"><property name="orientation"><enum>Qt::Horizontal</enum></property>
+    <widget class="QWidget" name="TaskPanel"><layout class="QVBoxLayout" name="taskLayout">
+     <item><widget class="QTableWidget" name="TW_ListTask"><column><property name="text"><string>序号</string></property></column><column><property name="text"><string>任务名称</string></property></column><column><property name="text"><string>创建日期</string></property></column><column><property name="text"><string>任务类型</string></property></column><column><property name="text"><string>任务进度</string></property></column></widget></item>
+     <item><layout class="QHBoxLayout" name="taskButtons"><item><widget class="QPushButton" name="PB_Add"><property name="text"><string>新建任务</string></property></widget></item><item><widget class="QPushButton" name="PB_ReName"><property name="text"><string>重命名</string></property></widget></item><item><widget class="QPushButton" name="PB_ViewPos"><property name="text"><string>打开任务目录</string></property></widget></item></layout></item>
+    </layout></widget>
+    <widget class="QWidget" name="DetailPanel"><layout class="QVBoxLayout" name="detailLayout">
+     <item><widget class="QLabel" name="LB_Labels"><property name="text"><string>标注类别</string></property></widget></item>
+     <item><widget class="QTableWidget" name="TW_LabelSet"><column><property name="text"><string>序号</string></property></column><column><property name="text"><string>名称</string></property></column><column><property name="text"><string>颜色</string></property></column></widget></item>
+     <item><layout class="QHBoxLayout" name="labelButtons"><item><widget class="QPushButton" name="PB_AddLabel"><property name="text"><string>新增标签</string></property></widget></item><item><widget class="QPushButton" name="PB_RemoveLabel"><property name="text"><string>删除标签</string></property></widget></item></layout></item>
+     <item><widget class="QLabel" name="LB_Description"><property name="text"><string>说明信息</string></property></widget></item>
+     <item><widget class="QPlainTextEdit" name="PTE_Description"><property name="readOnly"><bool>true</bool></property></widget></item>
+    </layout></widget>
+   </widget></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

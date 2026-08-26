@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CommonSetForm</class>
+ <widget class="QWidget" name="CommonSetForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1310</width>
+    <height>955</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <widget class="QLabel" name="LB_Title">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>60</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font: 18pt &quot;微软雅黑&quot;;</string>
+     </property>
+     <property name="text">
+      <string>标注管理</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QStackedWidget" name="stackedWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="LabePage">
+      <layout class="QGridLayout" name="gridLayout_5" columnstretch="1,6,1">
+       <item row="0" column="0" rowspan="3">
+        <layout class="QGridLayout" name="gridLayout" rowstretch="1,10,1,1,20,1" columnstretch="1,0">
+         <item row="5" column="0">
+          <widget class="QPushButton" name="PB_XLabe">
+           <property name="text">
+            <string>进入XLabel辅助</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0" colspan="2">
+          <layout class="QFormLayout" name="formLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>文件列表</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="combbox_SelectShow">
+             <item>
+              <property name="text">
+               <string>全部图像</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>已标注</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>未标注</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>有检出</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>含当前标签</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="4" column="0" colspan="2">
+          <widget class="QListWidget" name="LW_FileList"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="QPushButton" name="PB_RemoveLab">
+           <property name="text">
+            <string>移除</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/减少.png</normaloff>:/ResourYolo/Selfbutton/减少.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>目录</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="2">
+          <widget class="QListWidget" name="LW_DataSheet"/>
+         </item>
+         <item row="5" column="1">
+          <widget class="QPushButton" name="PB_ViewDir">
+           <property name="text">
+            <string>转入目录</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QPushButton" name="PB_AddLab">
+           <property name="text">
+            <string>增加</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/增加.png</normaloff>:/ResourYolo/Selfbutton/增加.png</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="2" rowspan="3">
+        <layout class="QGridLayout" name="gridLayout_4" rowstretch="1,10,1,1,20,1,0">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>标注标签</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="2">
+          <widget class="QListWidget" name="LW_LabelSet"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QPushButton" name="PB_AddDataSet">
+           <property name="text">
+            <string>增加</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/增加.png</normaloff>:/ResourYolo/Selfbutton/增加.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QPushButton" name="PB_SunDataSet">
+           <property name="text">
+            <string>移除</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/减少.png</normaloff>:/ResourYolo/Selfbutton/减少.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>当前标注</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0" colspan="2">
+          <widget class="QTableWidget" name="LW_SetLab">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <column>
+            <property name="text">
+             <string>序号</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>类型</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>标注类型</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>数据</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QPushButton" name="PB_ClearLab">
+           <property name="text">
+            <string>清空</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/清空.png</normaloff>:/ResourYolo/Selfbutton/清空.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QPushButton" name="PB_ReMoveCurentLab">
+           <property name="text">
+            <string>移除</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/移除.png</normaloff>:/ResourYolo/Selfbutton/移除.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QPushButton" name="PB_SaveCurent">
+           <property name="text">
+            <string>保存</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/保存.png</normaloff>:/ResourYolo/Selfbutton/保存.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QPushButton" name="PB_Reload">
+           <property name="text">
+            <string>重载</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/重载.png</normaloff>:/ResourYolo/Selfbutton/重载.png</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="1">
+        <widget class="QWidget" name="DisplayWidget" native="true">
+         <layout class="QGridLayout" name="gridLayout_6" rowstretch="1,5">
+          <item row="0" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QLabel" name="label_6">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>当前标签</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="CB_CurrentLabel">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <item>
+               <property name="text">
+                <string>所有</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>已标注</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>未标注</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_8">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>标签模式</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="CB_SetLabeMode">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <item>
+               <property name="text">
+                <string>自动</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/自动.png</normaloff>:/ResourYolo/Selfbutton/自动.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>手动</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/手动.png</normaloff>:/ResourYolo/Selfbutton/手动.png</iconset>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_7">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>标注类型</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="CB_ROIType">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <item>
+               <property name="text">
+                <string>正矩形</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/矩形.png</normaloff>:/ResourYolo/Selfbutton/矩形.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>斜矩形</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/倾斜矩形.png</normaloff>:/ResourYolo/Selfbutton/倾斜矩形.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>正圆</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/圆形未选中.png</normaloff>:/ResourYolo/Selfbutton/圆形未选中.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>多边形</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/多边形.png</normaloff>:/ResourYolo/Selfbutton/多边形.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>点</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/点.png</normaloff>:/ResourYolo/Selfbutton/点.png</iconset>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_9">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>存储模式</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="CB_SaveROIType">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <item>
+               <property name="text">
+                <string>自动</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/自动.png</normaloff>:/ResourYolo/Selfbutton/自动.png</iconset>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>手动</string>
+               </property>
+               <property name="icon">
+                <iconset resource="YtSRes.qrc">
+                 <normaloff>:/ResourYolo/Selfbutton/手动.png</normaloff>:/ResourYolo/Selfbutton/手动.png</iconset>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="ckB_ShowLable">
+              <property name="text">
+               <string>显示标注</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="ckB_ShowResu">
+              <property name="text">
+               <string>显示结果</string>
+              </property>
+              <property name="checked">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <widget class="BaseAnnoLegacyCanvas" name="YtLabelRoi" native="true"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <layout class="QGridLayout" name="gridLayout_3">
+         <item row="0" column="0">
+          <widget class="QPushButton" name="PB_StartIm">
+           <property name="text">
+            <string>第一张</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/第一张.png</normaloff>:/ResourYolo/Selfbutton/第一张.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="PB_LastIm">
+           <property name="text">
+            <string>上一张 [A]</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/上一张.png</normaloff>:/ResourYolo/Selfbutton/上一张.png</iconset>
+           </property>
+           <property name="autoRepeat">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QPushButton" name="PB_SetBackgroud">
+           <property name="text">
+            <string>标注为背景</string>
+           </property>
+           <property name="autoRepeat">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QPushButton" name="PB_NextIm">
+           <property name="text">
+            <string>下一张 [D]</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/下一张.png</normaloff>:/ResourYolo/Selfbutton/下一张.png</iconset>
+           </property>
+           <property name="autoRepeat">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QPushButton" name="PB_EndIm">
+           <property name="text">
+            <string>最末张</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/最后一张.png</normaloff>:/ResourYolo/Selfbutton/最后一张.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="5">
+          <widget class="QPushButton" name="PB_DeletImg">
+           <property name="text">
+            <string>删除图像</string>
+           </property>
+           <property name="icon">
+            <iconset resource="YtSRes.qrc">
+             <normaloff>:/ResourYolo/Selfbutton/删除.png</normaloff>:/ResourYolo/Selfbutton/删除.png</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="1">
+        <layout class="QGridLayout" name="gridLayout_7" columnstretch="1,2,1,1,1">
+         <item row="0" column="2">
+          <widget class="QPushButton" name="PB_SaveTxt">
+           <property name="text">
+            <string>保存当前</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="CB_OcrP">
+           <property name="text">
+            <string>字符标注</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QCheckBox" name="CB_AutoSave">
+           <property name="text">
+            <string>切换自动保存</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QPushButton" name="PB_Txt2Json">
+           <property name="text">
+            <string>覆盖标签</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="LE_OcrPP">
+           <property name="placeholderText">
+            <string>输入字符结果</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>BaseAnnoLegacyCanvas</class>
+   <extends>QWidget</extends>
+   <header>baseannolegacycanvas.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="YtSRes.qrc"/>
+ </resources>
+ <connections/>
+</ui>

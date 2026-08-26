@@ -1,0 +1,12 @@
+#ifndef SAMBASELIB_GLOBAL_H
+#define SAMBASELIB_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(SAMBASELIB_LIBRARY)
+#  define SAMBASELIB_EXPORT Q_DECL_EXPORT
+#else
+#  define SAMBASELIB_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // SAMBASELIB_GLOBAL_H

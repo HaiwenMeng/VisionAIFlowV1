@@ -1,0 +1,41 @@
+<RCC>
+    <qresource prefix="/">
+        <file>ResourYolo/pStart.png</file>
+        <file>ResourYolo/qt_zh_CN.qm</file>
+        <file>ResourYolo/Soft.ico</file>
+        <file>ResourYolo/Selfbutton/dataset.png</file>
+        <file>ResourYolo/Selfbutton/label.png</file>
+        <file>ResourYolo/Selfbutton/model-predict-1.png</file>
+        <file>ResourYolo/Selfbutton/system.png</file>
+        <file alias="ResourYolo/Selfbutton/第一张.png">ResourYolo/Selfbutton/first.png</file>
+        <file alias="ResourYolo/Selfbutton/多边形.png">ResourYolo/Selfbutton/polygon.png</file>
+        <file alias="ResourYolo/Selfbutton/矩形.png">ResourYolo/Selfbutton/rectangle.png</file>
+        <file alias="ResourYolo/Selfbutton/模型训练.png">ResourYolo/Selfbutton/train.png</file>
+        <file alias="ResourYolo/Selfbutton/倾斜矩形.png">ResourYolo/Selfbutton/rotated_rectangle.png</file>
+        <file alias="ResourYolo/Selfbutton/删除.png">ResourYolo/Selfbutton/delete.png</file>
+        <file alias="ResourYolo/Selfbutton/上一张.png">ResourYolo/Selfbutton/previous.png</file>
+        <file alias="ResourYolo/Selfbutton/椭圆.png">ResourYolo/Selfbutton/ellipse.png</file>
+        <file alias="ResourYolo/Selfbutton/下一张.png">ResourYolo/Selfbutton/next.png</file>
+        <file alias="ResourYolo/Selfbutton/新建.png">ResourYolo/Selfbutton/new.png</file>
+        <file alias="ResourYolo/Selfbutton/圆形未选中.png">ResourYolo/Selfbutton/circle.png</file>
+        <file alias="ResourYolo/Selfbutton/最后一张.png">ResourYolo/Selfbutton/last.png</file>
+        <file alias="ResourYolo/Selfbutton/点.png">ResourYolo/Selfbutton/point.png</file>
+        <file alias="ResourYolo/Selfbutton/手动.png">ResourYolo/Selfbutton/manual.png</file>
+        <file alias="ResourYolo/Selfbutton/自动.png">ResourYolo/Selfbutton/auto.png</file>
+        <file alias="ResourYolo/Selfbutton/减少.png">ResourYolo/Selfbutton/subtract.png</file>
+        <file alias="ResourYolo/Selfbutton/增加.png">ResourYolo/Selfbutton/add.png</file>
+        <file alias="ResourYolo/Selfbutton/清空.png">ResourYolo/Selfbutton/clear.png</file>
+        <file alias="ResourYolo/Selfbutton/重载.png">ResourYolo/Selfbutton/reload.png</file>
+        <file alias="ResourYolo/Selfbutton/移除.png">ResourYolo/Selfbutton/remove.png</file>
+        <file alias="ResourYolo/Selfbutton/保存.png">ResourYolo/Selfbutton/save.png</file>
+        <file alias="ResourYolo/Selfbutton/返回主页.png">ResourYolo/Selfbutton/home.png</file>
+        <file alias="ResourYolo/Selfbutton/转到目录.png">ResourYolo/Selfbutton/open_folder.png</file>
+        <file alias="ResourYolo/Selfbutton/未标注.png">ResourYolo/Selfbutton/unannotated.png</file>
+        <file alias="ResourYolo/Selfbutton/已标注.png">ResourYolo/Selfbutton/annotated.png</file>
+        <file alias="ResourYolo/Selfbutton/项目管理.png">ResourYolo/Selfbutton/project.png</file>
+        <file>ResourYolo/Selfbutton/line.png</file>
+        <file>styles/dark.qss</file>
+        <file>ResourYolo/CommercialIcons/check.svg</file>
+        <file>ResourYolo/CommercialIcons/train.svg</file>
+    </qresource>
+</RCC>

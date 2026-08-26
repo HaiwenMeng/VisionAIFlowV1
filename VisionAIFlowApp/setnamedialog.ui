@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SetNameDialog</class>
+ <widget class="QDialog" name="SetNameDialog">
+  <property name="windowTitle"><string>新建任务</string></property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0"><widget class="QLabel" name="LB_TaskName"><property name="text"><string>任务名称</string></property></widget></item>
+   <item row="0" column="1"><widget class="QLineEdit" name="LE_TaskName"><property name="placeholderText"><string>请输入任务名称</string></property></widget></item>
+   <item row="1" column="0"><widget class="QLabel" name="LB_TaskType"><property name="text"><string>任务类型</string></property></widget></item>
+   <item row="1" column="1"><widget class="QComboBox" name="CB_TaskType"/></item>
+   <item row="2" column="0" colspan="2"><widget class="QPlainTextEdit" name="PTE_Description"><property name="placeholderText"><string>请输入任务说明</string></property></widget></item>
+   <item row="3" column="0"><widget class="QPushButton" name="PB_Confirm"><property name="text"><string>确认</string></property></widget></item>
+   <item row="3" column="1"><widget class="QPushButton" name="PB_Cancel"><property name="text"><string>取消</string></property></widget></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

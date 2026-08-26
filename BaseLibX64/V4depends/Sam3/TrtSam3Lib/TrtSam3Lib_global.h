@@ -1,0 +1,12 @@
+#ifndef TRTSAM3LIB_GLOBAL_H
+#define TRTSAM3LIB_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(TRTSAM3LIB_LIBRARY)
+#  define TRTSAM3LIB_EXPORT Q_DECL_EXPORT
+#else
+#  define TRTSAM3LIB_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // TRTSAM3LIB_GLOBAL_H
