@@ -2,15 +2,14 @@
 
 #include "visionaiflow/foundation/Error.h"
 
-#include <stdexcept>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 #include <variant>
 
 namespace visionaiflow::foundation
 {
-template<typename T>
-class Result
+template <typename T> class Result
 {
 public:
     static Result Success(T value)
@@ -60,14 +59,18 @@ public:
     }
 
 private:
-    explicit Result(T value) : m_value(std::move(value)) {}
-    explicit Result(Error error) : m_value(std::move(error)) {}
+    explicit Result(T value) : m_value(std::move(value))
+    {
+    }
+
+    explicit Result(Error error) : m_value(std::move(error))
+    {
+    }
 
     std::variant<T, Error> m_value;
 };
 
-template<>
-class Result<void>
+template <> class Result<void>
 {
 public:
     static Result Success()
@@ -99,10 +102,15 @@ public:
     }
 
 private:
-    Result() : m_success(true) {}
-    explicit Result(Error error) : m_success(false), m_error(std::move(error)) {}
+    Result() : m_success(true)
+    {
+    }
+
+    explicit Result(Error error) : m_success(false), m_error(std::move(error))
+    {
+    }
 
     bool m_success;
     std::optional<Error> m_error;
 };
-}
+} // namespace visionaiflow::foundation

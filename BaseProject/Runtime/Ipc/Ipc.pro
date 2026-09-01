@@ -18,5 +18,5 @@ SOURCES += src/Protocol.cpp \
 HEADERS += include/visionaiflow/ipc/Protocol.h \
            include/visionaiflow/ipc/LocalServer.h \
            include/visionaiflow/ipc/LocalClient.h
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib
-LIBS += -lFoundation
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib
+LIBS += -lVisionAIFlowCore

@@ -1,5 +1,15 @@
 VAF_ROOT = $$clean_path($$PWD/..)
+VAF_CUDA_ROOT = C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.8
+VAF_CUDA_QMAKE_ROOT = C:/PROGRA~1/NVIDIA~2/CUDA/v11.8
+VAF_TENSORRT_ROOT = E:/TensorRT-10.13.0.35
+VAF_OPENVINO_ROOT = F:/VisionAIFlowDeps/openvino2025.3.0
+VAF_TORCH_ROOT = F:/VisionAIFlowDeps/libtorch/2.7.1-cu118/release
 include($$VAF_ROOT/qmake/common.pri)
+
+!exists($$VAF_CUDA_ROOT/bin/nvcc.exe): error(CUDA 11.8 nvcc is missing at $$VAF_CUDA_ROOT/bin/nvcc.exe)
+!exists($$VAF_TENSORRT_ROOT/include/NvInferVersion.h): error(TensorRT headers are missing at $$VAF_TENSORRT_ROOT)
+!exists($$VAF_OPENVINO_ROOT/include/openvino/openvino.hpp): error(OpenVINO headers are missing at $$VAF_OPENVINO_ROOT)
+!exists($$VAF_TORCH_ROOT/include/torch/csrc/api/include/torch/version.h): error(LibTorch 2.7.1 cu118 Release headers are missing at $$VAF_TORCH_ROOT)
 
 TEMPLATE = app
 TARGET = VisionAIFlowApp
@@ -21,6 +31,7 @@ VAF_SAM3_DIR = $$VAF_ROOT/LVMs/TrtSAM3Lib
 
 INCLUDEPATH += $$PWD \
                $$PWD/TrainForms/DetecForms \
+               $$PWD/InferForms/DetecForms \
                  $$VAF_ROOT/UIProject/BaseAnnoDisp \
                  $$PWD/AnnoForms/SemiAutoAnnoForm \
                  $$VAF_SAM3_DIR \
@@ -76,6 +87,7 @@ SOURCES += \
     $$VAF_SAM3_DIR/third_party/sam3src/infer/sam3infer.cpp \
     TrainForms/DetecForms/traindataform.cpp \
     TrainForms/DetecForms/detecttrainingcontroller.cpp \
+    InferForms/DetecForms/detectioninferencecontroller.cpp \
     AnnoForms/BaseAnnoForm/CommonSetForm.cpp
 
 HEADERS += \
@@ -129,6 +141,7 @@ HEADERS += \
     $$VAF_SAM3_DIR/third_party/sam3src/kernels/process_kernel_warp.hpp \
     TrainForms/DetecForms/traindataform.h \
     TrainForms/DetecForms/detecttrainingcontroller.h \
+    InferForms/DetecForms/detectioninferencecontroller.h \
     AnnoForms/BaseAnnoForm/CommonSetForm.h
 
 FORMS += \
@@ -147,13 +160,12 @@ FORMS += \
     TrainForms/DetecForms/traindataform.ui \
     AnnoForms/BaseAnnoForm/CommonSetForm.ui
 
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
-                  $$BUILDLIB/Domain.lib \
-                  $$BUILDLIB/PluginApi.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
+                   $$BUILDLIB/PluginApi.lib \
                   $$BUILDLIB/BaseAnnoDisp.lib \
                   $$VAF_DEPENDS_DIR/YtRoiShowDisp/release/YtRoiShowDispQt6.lib
 
-LIBS += -lFoundation -lDomain -lPluginApi -lBaseAnnoDisp \
+LIBS += -lVisionAIFlowCore -lPluginApi -lBaseAnnoDisp \
         -ldwmapi -luser32 \
         -L$$VAF_DEPENDS_DIR/YtRoiShowDisp/release -lYtRoiShowDispQt6 \
         -L$$VAF_OPENCV_DIR/lib -lopencv_world460 \

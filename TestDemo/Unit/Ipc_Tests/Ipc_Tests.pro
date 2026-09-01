@@ -7,6 +7,6 @@ TARGET = Ipc_Tests
 OBJECTS_DIR = $$PWD/release
 DESTDIR = $$VAF_BINARY_DIR
 SOURCES += tst_IpcProtocol.cpp
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                   $$BUILDLIB/Ipc.lib
-LIBS += -lFoundation -lIpc
+LIBS += -lVisionAIFlowCore -lIpc

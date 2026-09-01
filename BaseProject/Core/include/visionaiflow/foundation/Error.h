@@ -3,10 +3,10 @@
 #include <map>
 #include <string>
 
-#if defined(VISIONAIFLOW_FOUNDATION_LIBRARY)
-#define VISIONAIFLOW_FOUNDATION_EXPORT __declspec(dllexport)
+#if defined(VISIONAIFLOW_CORE_LIBRARY)
+#define VISIONAIFLOW_CORE_EXPORT __declspec(dllexport)
 #else
-#define VISIONAIFLOW_FOUNDATION_EXPORT __declspec(dllimport)
+#define VISIONAIFLOW_CORE_EXPORT __declspec(dllimport)
 #endif
 
 namespace visionaiflow::foundation
@@ -29,7 +29,7 @@ enum class ErrorCode
     InternalFailure
 };
 
-struct VISIONAIFLOW_FOUNDATION_EXPORT Error
+struct VISIONAIFLOW_CORE_EXPORT Error
 {
     ErrorCode code;
     std::string message;
@@ -38,5 +38,5 @@ struct VISIONAIFLOW_FOUNDATION_EXPORT Error
     static Error Create(ErrorCode code, std::string message);
 };
 
-VISIONAIFLOW_FOUNDATION_EXPORT const char *ToString(ErrorCode code) noexcept;
-}
+VISIONAIFLOW_CORE_EXPORT const char *ToString(ErrorCode code) noexcept;
+} // namespace visionaiflow::foundation

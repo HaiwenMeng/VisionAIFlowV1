@@ -1,6 +1,7 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 
+# Build runtime libraries after the shared Core library.
 SUBDIRS += Ipc \
            QtFoundation
 

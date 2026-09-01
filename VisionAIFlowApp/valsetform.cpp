@@ -1,11 +1,14 @@
 #include "valsetform.h"
+#include "InferForms/DetecForms/detectioninferencecontroller.h"
 #include "release/ui_valsetform.h"
 #include "filecopysetdlg.h"
 #include <QFileDialog>
 #include <QtConcurrent/QtConcurrent>
 #include <QStringConverter>
 #include <QThreadPool>
-ValSetForm::ValSetForm(QWidget *parent) : QWidget(parent), ui(new Ui::ValSetForm)
+ValSetForm::ValSetForm(QWidget *parent)
+    : QWidget(parent), ui(new Ui::ValSetForm),
+      m_detectionInferenceController(std::make_unique<DetectionInferenceController>(this))
 {
     ui->setupUi(this);
     ui->ytRoiShowDisp->addOverPlayPtr(&m_OverPlayShow, "set");
@@ -28,12 +31,14 @@ ValSetForm::~ValSetForm()
 void ValSetForm::toSetProcessName(QString Setname)
 {
     m_ProcessName = Setname;
-    ui->LE_CurentProName->setText(m_ProcessName);
 }
 
 void ValSetForm::toInitShow()
 {
-    ui->LE_ModeType->setText(m_DataSetForm->toGetRunType());
+    const bool isDetectionTask = m_DataSetForm->toGetRunIndex() == 0;
+    ui->CB_DetectionPlugin->setEnabled(isDetectionTask);
+    ui->LE_DetectionModel->setEnabled(isDetectionTask);
+    ui->PB_SelectDetectionModel->setEnabled(isDetectionTask);
     //
     QDir temdir;
     temdir.setPath(YtYoloDefine::toGetValuePath() + "/" + m_ProcessName);
@@ -44,6 +49,92 @@ void ValSetForm::toInitShow()
     //
     m_YtYoloSetPro.toLoadData(YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName);
     toLoadCsv();
+    RefreshDetectionPlugins();
+    ui->LE_DetectionModel->setText(QDir(YtYoloDefine::toGetTrainPath())
+                                       .filePath(m_ProcessName + QStringLiteral("/detect/train/weights/best.pt")));
+}
+
+void ValSetForm::RefreshDetectionPlugins()
+{
+    ui->CB_DetectionPlugin->clear();
+    if (m_DataSetForm == nullptr || m_DataSetForm->toGetRunIndex() != 0)
+    {
+        return;
+    }
+
+    QStringList errorMessages;
+    const QVector<DetectionInferencePluginDescriptor> plugins =
+        m_detectionInferenceController->DiscoverPlugins(&errorMessages);
+    for (const DetectionInferencePluginDescriptor &plugin : plugins)
+    {
+        const QString displayName = plugin.version.isEmpty()
+                                        ? plugin.displayName
+                                        : QStringLiteral("%1 %2").arg(plugin.displayName, plugin.version);
+        ui->CB_DetectionPlugin->addItem(displayName, plugin.filePath);
+    }
+    for (const QString &errorMessage : errorMessages)
+    {
+        AppendLog(errorMessage);
+    }
+    if (plugins.isEmpty())
+    {
+        AppendLog(QString(u8"未发现可用的检测推理插件"));
+    }
+}
+
+void ValSetForm::AppendLog(const QString &message)
+{
+    ui->plainTextEdit_Log->append(message);
+    qInfo().noquote() << message;
+}
+
+bool ValSetForm::RunDetectionInference()
+{
+    if (ui->listWidget->count() == 0)
+    {
+        const QString errorMessage = QString(u8"请先添加待检测的图像");
+        AppendLog(errorMessage);
+        QMessageBox::critical(this, QString(u8"检测推理失败"), errorMessage);
+        return false;
+    }
+
+    DetectionInferenceConfig config;
+    config.pluginPath = ui->CB_DetectionPlugin->currentData().toString();
+    config.modelPath = ui->LE_DetectionModel->text().trimmed();
+    config.imageWidth = 640;
+    config.imageHeight = 640;
+    config.confidenceThreshold = ui->doubleSpinBox->value();
+    config.nmsThreshold = ui->dSpinBox_IOU->value();
+
+    QString errorMessage;
+    if (!m_detectionInferenceController->LoadModel(config, &errorMessage))
+    {
+        AppendLog(errorMessage);
+        QMessageBox::critical(this, QString(u8"检测模型加载失败"), errorMessage);
+        return false;
+    }
+
+    QStringList imagePaths;
+    imagePaths.reserve(ui->listWidget->count());
+    for (int index = 0; index < ui->listWidget->count(); ++index)
+    {
+        imagePaths.append(ui->listWidget->item(index)->text());
+    }
+
+    int completedImageCount = 0;
+    if (!m_detectionInferenceController->InferImages(imagePaths, &completedImageCount, &errorMessage))
+    {
+        AppendLog(errorMessage);
+        QMessageBox::critical(this, QString(u8"检测推理失败"), errorMessage);
+        return false;
+    }
+
+    AppendLog(QString(u8"检测推理完成, 已写入 %1 个同名 txt 文件").arg(completedImageCount));
+    if (ui->listWidget->currentItem() != nullptr)
+    {
+        on_listWidget_itemSelectionChanged();
+    }
+    return true;
 }
 
 void ValSetForm::on_PB_AddFiles_clicked()
@@ -287,6 +378,8 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
     ui->ytRoiShowDispJson->toSetImage(m_GetImage);
     m_OverPlayShow.toClearData();
     m_JsonOverPlayShow.toClearData();
+    ui->ytRoiShowDisp->toUpdateShow();
+    ui->ytRoiShowDispJson->toUpdateShow();
     //
     int getindex = m_Getfilename.lastIndexOf(".");
     if (getindex < 0)
@@ -433,6 +526,19 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
 
 void ValSetForm::on_PB_ProVal_clicked()
 {
+    if (m_DataSetForm == nullptr)
+    {
+        const QString errorMessage = QString(u8"未设置数据集页面, 无法执行推理");
+        AppendLog(errorMessage);
+        QMessageBox::critical(this, QString(u8"检测推理失败"), errorMessage);
+        return;
+    }
+    if (m_DataSetForm->toGetRunIndex() == 0)
+    {
+        RunDetectionInference();
+        return;
+    }
+
     if (!QFile::exists(YtYoloDefine::toGetPythonPath() + "/python.exe"))
     {
         QMessageBox::warning(0, u8"警告", u8"运行路径异常", u8"确定");
@@ -458,13 +564,6 @@ void ValSetForm::on_PB_ProVal_clicked()
         m_SetProcess->setProcessChannelMode(QProcess::MergedChannels);
         m_SetProcess->start("cmd.exe");
     }
-
-    // D:\PythonEnv\python.exe  D:\PythonEnv\Scripts\yolo.exe settings runs_dir=D:/PythonEnv/runTest mlflow=false
-    // wandb=false datasets_dir=D:/PythonEnv/runTest/datasets
-
-    // D:\PythonEnv\python.exe  D:\PythonEnv\Scripts\yolo.exe detect train
-    // data=G:/YoloV8ProDo/DataSheet/目标识别/Config.yaml model=D:/PythonEnv/model/yolo11s.pt epochs=30 imgsz=640
-    // name=train exist_ok=true
 
     QString cmdDir = YtYoloDefine::toGetPythonPath().left(1) + ":" + "\r\n";
     m_SetProcess->write(cmdDir.toLocal8Bit().data(), qint64(cmdDir.toLocal8Bit().size()));
@@ -531,14 +630,32 @@ void ValSetForm::on_PB_ProVal_clicked()
 
     m_SetProcess->write(cmdDir.toLocal8Bit().data(), qint64(cmdDir.toLocal8Bit().size()));
 
-    //
-    QStringList protask;
+    QString inferenceTask;
+    switch (m_DataSetForm->toGetRunIndex())
+    {
+    case 1:
+        inferenceTask = QStringLiteral("obb");
+        break;
+    case 2:
+        inferenceTask = QStringLiteral("segment");
+        break;
+    case 3:
+        inferenceTask = QStringLiteral("classify");
+        break;
+    default:
+    {
+        const QString errorMessage = QString(u8"当前任务类型不支持此推理路径");
+        AppendLog(errorMessage);
+        QMessageBox::critical(this, QString(u8"推理失败"), errorMessage);
+        return;
+    }
+    }
+
     QFile temsetfile;
-    protask << "detect" << "obb" << "segment" << "classify";
     temsetfile.setFileName(QString("%1/%2/%3/train/weights/best.pt")
                                .arg(YtYoloDefine::toGetTrainPath())
                                .arg(m_ProcessName)
-                               .arg(protask.at(m_DataSetForm->toGetRunIndex())));
+                               .arg(inferenceTask));
     qDebug() << temsetfile.fileName() << "ppp";
     if (!temsetfile.exists())
     {
@@ -570,8 +687,6 @@ void ValSetForm::on_PB_ProVal_clicked()
     }
     OpenFile.close();
 
-    // D:\PythonEnv\python.exe  D:\PythonEnv\Scripts\yolo.exe predict model=D:\PythonEnv\model\yolo11n-seg.pt
-    // source=G:\YoloV8ProDo\Valsheet\11 save=False show=false conf=0.1 save_txt=true exist_ok=true
     cmdDir = QString("%1/python.exe %2/Scripts/yolo.exe predict model=%3 source=%4 save=False show=false conf=%5 "
                      "iou=%6 save_txt=true save_conf=true exist_ok=true max_det=1000\r\n")
                  .arg(YtYoloDefine::toGetPythonPath()) // 1 运行目录
@@ -582,6 +697,19 @@ void ValSetForm::on_PB_ProVal_clicked()
                  .arg(ui->dSpinBox_IOU->value());      // 6 iou_nms
     qDebug() << cmdDir << "PPP";
     m_SetProcess->write(cmdDir.toLocal8Bit().data(), qint64(cmdDir.toLocal8Bit().size()));
+}
+
+void ValSetForm::on_PB_SelectDetectionModel_clicked()
+{
+    const QString modelPath = QFileDialog::getOpenFileName(this,
+                                                           QString(u8"选择检测模型 checkpoint"),
+                                                           ui->LE_DetectionModel->text(),
+                                                           QString(u8"检测模型文件 (*.pt *.pth);;所有文件 (*.*)"));
+    if (modelPath.isEmpty())
+    {
+        return;
+    }
+    ui->LE_DetectionModel->setText(modelPath);
 }
 
 void ValSetForm::on_PB_RunReplace_clicked()

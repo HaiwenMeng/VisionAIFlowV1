@@ -7,6 +7,6 @@ TARGET = ModelGraph_Tests
 OBJECTS_DIR = $$PWD/release
 DESTDIR = $$VAF_BINARY_DIR
 SOURCES += tst_ModelGraph.cpp
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                   $$BUILDLIB/ModelGraph.lib
-LIBS += -lFoundation -lModelGraph
+LIBS += -lVisionAIFlowCore -lModelGraph

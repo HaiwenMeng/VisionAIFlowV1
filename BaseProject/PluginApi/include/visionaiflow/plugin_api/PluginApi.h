@@ -119,20 +119,83 @@ struct DetectionMetrics final
     double meanAveragePrecision{0.0};
 };
 
-using DetectionTrainerCapabilities = PluginCapabilities;
+struct DetectionInferConfig final
+{
+    QString modelPath;
+    int gpuId{0};
+    int imageWidth{0};
+    int imageHeight{0};
+    bool useFp16{false};
+};
 
-class IDetectionTrainer : public ITrainPlugin
+struct DetectionInferRequest final
+{
+    QString imagePath;
+    double confidenceThreshold{0.25};
+    double nmsThreshold{0.45};
+};
+
+struct DetectionBox final
+{
+    int classId{-1};
+    QString className;
+    double confidence{0.0};
+    double x{0.0};
+    double y{0.0};
+    double width{0.0};
+    double height{0.0};
+};
+
+struct DetectionInferResult final
+{
+    int imageWidth{0};
+    int imageHeight{0};
+    QVector<DetectionBox> boxes;
+};
+
+struct ModelExportConfig final
+{
+    QString checkpointPath;
+    QString outputPath;
+    QString format;
+    int imageWidth{0};
+    int imageHeight{0};
+};
+
+struct BackboneExportConfig final
+{
+    QString checkpointPath;
+    QString outputDirectory;
+    QString format;
+    int imageWidth{0};
+    int imageHeight{0};
+};
+
+struct DetectionPluginCapabilities final
+{
+    bool supportsResume{false};
+    bool supportsPretrained{false};
+    bool supportsExport{false};
+    bool supportsBackboneExport{false};
+    bool supportsFp16{false};
+    bool supportsMultiGpu{false};
+};
+
+class IDetectionPlugin : public ITrainPlugin
 {
 public:
-    ~IDetectionTrainer() override = default;
+    ~IDetectionPlugin() override = default;
 
-    virtual bool initialize(const DetectionTrainConfig &config) = 0;
+    virtual bool initializeTraining(const DetectionTrainConfig &config) = 0;
     virtual bool startTrain() = 0;
     virtual DetectionTrainProgress progress() const = 0;
     virtual DetectionMetrics metrics() const = 0;
-    virtual DetectionTrainerCapabilities capabilities() const = 0;
+    virtual bool loadInferenceModel(const DetectionInferConfig &config) = 0;
+    virtual bool infer(const DetectionInferRequest &request, DetectionInferResult *result) = 0;
+    virtual bool exportModel(const ModelExportConfig &config) = 0;
+    virtual bool exportBackbone(const BackboneExportConfig &config) = 0;
+    virtual DetectionPluginCapabilities capabilities() const = 0;
     virtual QVector<PluginParameterDefinition> parameterDefinitions() const = 0;
-    virtual bool exportModel(const QString &outputPath, const QString &format) = 0;
 };
 
 struct ClassificationTrainConfig final
@@ -193,5 +256,5 @@ public:
 
 } // namespace visionaiflow::plugin_api
 
-#define VISIONAIFLOW_DETECTION_TRAINER_IID "visionaiflow.plugin_api.IDetectionTrainer/1.0"
-Q_DECLARE_INTERFACE(visionaiflow::plugin_api::IDetectionTrainer, VISIONAIFLOW_DETECTION_TRAINER_IID)
+#define VISIONAIFLOW_DETECTION_PLUGIN_IID "visionaiflow.plugin_api.IDetectionPlugin/2.0"
+Q_DECLARE_INTERFACE(visionaiflow::plugin_api::IDetectionPlugin, VISIONAIFLOW_DETECTION_PLUGIN_IID)

@@ -6,6 +6,7 @@ CONFIG += dll
 QT += core
 TARGET = PluginApi
 DEFINES += VISIONAIFLOW_PLUGIN_API_LIBRARY
+QMAKE_CXXFLAGS += /utf-8
 DESTDIR = $$BUILDLIB
 OBJECTS_DIR = $$PWD/release
 MOC_DIR = $$PWD/release
@@ -15,4 +16,3 @@ QMAKE_POST_LINK += copy /Y $$BUILDLIB_NATIVE\\PluginApi.dll $$VAF_ROOT_NATIVE\\B
 SOURCES += src/PluginManager.cpp
 HEADERS += include/visionaiflow/plugin_api/PluginApi.h \
            include/visionaiflow/plugin_api/PluginManager.h
-

@@ -1,5 +1,6 @@
 VAF_ROOT = $$clean_path($$PWD/../../..)
 include($$VAF_ROOT/qmake/common.pri)
+include($$VAF_ROOT/qmake/libtorch_cuda.pri)
 
 TEMPLATE = app
 QT += core testlib
@@ -17,11 +18,11 @@ SOURCES += tst_OnnxExporter.cpp
 INCLUDEPATH += $$VAF_DEPS_RELEASE_ROOT/include \
                $$VAF_TORCH_ROOT/include \
                $$VAF_TORCH_ROOT/include/torch/csrc/api/include
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                   $$BUILDLIB/Models_Common.lib \
                   $$BUILDLIB/TrainingState.lib \
                   $$BUILDLIB/Training.lib \
                   $$BUILDLIB/Export.lib \
                   $$VAF_MODELS_DIR/Linear.lib \
                   $$VAF_MODELS_DIR/Yolo11.lib
-LIBS += -lFoundation -lModels_Common -lTrainingState -lTraining -lExport -L$$VAF_MODELS_DIR -lLinear -lYolo11 -L$$VAF_DEPS_RELEASE_ROOT/lib -lonnx -lonnx_proto -llibprotobuf -L$$VAF_TORCH_ROOT/lib -ltorch_cpu -lc10
+LIBS += -lVisionAIFlowCore -lModels_Common -lTrainingState -lTraining -lExport -L$$VAF_MODELS_DIR -lLinear -lYolo11 -L$$VAF_DEPS_RELEASE_ROOT/lib -lonnx -lonnx_proto -llibprotobuf

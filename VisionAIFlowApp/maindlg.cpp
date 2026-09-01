@@ -194,8 +194,17 @@ void MainDlg::UpdateWindowControlButtons()
 
 void MainDlg::OnTaskSelected(const QString &taskName)
 {
+    TaskDefinition task;
+    QString errorMessage;
+    if (!TaskRepository::LoadTask(taskName, &task, &errorMessage))
+    {
+        ReportError(errorMessage);
+        return;
+    }
+
     m_taskName = taskName;
-    setWindowTitle(QString(u8"VisionAIFlow 标注训练软件 - %1").arg(taskName));
+    setWindowTitle(
+        QString(u8"VisionAIFlow 标注训练软件 - [%1]-%2").arg(TaskRepository::DisplayType(task.type), taskName));
 }
 
 void MainDlg::on_PB_ProJectMange_clicked()

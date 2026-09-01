@@ -78,15 +78,21 @@ void DetectTrainingController::Start(const DetectTrainingRequest &request)
     config.gpuId = 0;
     config.resumeCheckpointPath = request.resumeCheckpointPath;
     config.algorithmOptions.insert(QStringLiteral("model_variant"), request.modelVariant);
-    if (!m_pluginManager->detectionTrainer()->initialize(config))
+    auto *plugin = m_pluginManager->detectionPlugin();
+    if (plugin == nullptr)
     {
-        const QString errorMessage = m_pluginManager->detectionTrainer()->errorMessage();
+        emit Failed(QString(u8"检测训练插件加载后为空"));
+        return;
+    }
+    if (!plugin->initializeTraining(config))
+    {
+        const QString errorMessage = plugin->errorMessage();
         emit Failed(errorMessage);
         return;
     }
-    if (!m_pluginManager->detectionTrainer()->startTrain())
+    if (!plugin->startTrain())
     {
-        const QString errorMessage = m_pluginManager->detectionTrainer()->errorMessage();
+        const QString errorMessage = plugin->errorMessage();
         emit Failed(errorMessage);
         return;
     }
@@ -122,32 +128,34 @@ QVector<DetectionPluginDescriptor> DetectTrainingController::DiscoverPlugins(QSt
 
 void DetectTrainingController::Cancel()
 {
-    if (m_pluginManager->detectionTrainer() != nullptr && !m_pluginManager->detectionTrainer()->stop())
+    auto *plugin = m_pluginManager->detectionPlugin();
+    if (plugin != nullptr && !plugin->stop())
     {
-        emit Failed(m_pluginManager->detectionTrainer()->errorMessage());
+        emit Failed(plugin->errorMessage());
     }
 }
 
 bool DetectTrainingController::IsRunning() const noexcept
 {
-    if (m_pluginManager->detectionTrainer() == nullptr)
+    const auto *plugin = m_pluginManager->detectionPlugin();
+    if (plugin == nullptr)
     {
         return false;
     }
-    const TrainState pluginState = m_pluginManager->detectionTrainer()->state();
+    const TrainState pluginState = plugin->state();
     return pluginState == TrainState::Running || pluginState == TrainState::Stopping;
 }
 
 void DetectTrainingController::PollPluginState()
 {
-    auto *trainer = m_pluginManager->detectionTrainer();
-    if (trainer == nullptr)
+    auto *plugin = m_pluginManager->detectionPlugin();
+    if (plugin == nullptr)
     {
         m_pollTimer->stop();
         return;
     }
 
-    const auto progress = trainer->progress();
+    const auto progress = plugin->progress();
     if (progress.train.epoch > m_lastReportedEpoch)
     {
         m_lastReportedEpoch = progress.train.epoch;
@@ -160,7 +168,7 @@ void DetectTrainingController::PollPluginState()
                            progress.meanIou);
     }
 
-    const TrainState pluginState = trainer->state();
+    const TrainState pluginState = plugin->state();
     if (pluginState == TrainState::Running || pluginState == TrainState::Stopping)
     {
         return;
@@ -169,7 +177,7 @@ void DetectTrainingController::PollPluginState()
     m_pollTimer->stop();
     if (pluginState == TrainState::Failed)
     {
-        const QString errorMessage = trainer->errorMessage();
+        const QString errorMessage = plugin->errorMessage();
         emit Failed(errorMessage);
     }
     else if (progress.train.message == QStringLiteral("cancelled"))

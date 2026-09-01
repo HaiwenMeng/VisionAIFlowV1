@@ -24,6 +24,5 @@ HEADERS += include/visionaiflow/project_store/ProjectDefinition.h \
            include/visionaiflow/project_store/ProjectLock.h \
            include/visionaiflow/project_store/ProjectMigration.h \
            include/visionaiflow/project_store/LabelStore.h
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
-                  $$BUILDLIB/Domain.lib
-LIBS += -lFoundation -lDomain -ladvapi32
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib
+LIBS += -lVisionAIFlowCore -ladvapi32

@@ -22,6 +22,6 @@ HEADERS += include/visionaiflow/annotation/Geometry.h \
            include/visionaiflow/annotation/AnnotationDocument.h \
            include/visionaiflow/annotation/LabelImpactAnalyzer.h \
            include/visionaiflow/annotation/LabelMutationTransaction.h
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
-                  $$BUILDLIB/ProjectStore.lib
-LIBS += -lFoundation -lProjectStore
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
+                   $$BUILDLIB/ProjectStore.lib
+LIBS += -lVisionAIFlowCore -lProjectStore

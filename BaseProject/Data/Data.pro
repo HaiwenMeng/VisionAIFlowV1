@@ -1,6 +1,7 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 
+# Build data libraries after the shared Core library.
 SUBDIRS += ProjectStore \
            Annotation
 

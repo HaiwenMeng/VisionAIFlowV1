@@ -6,8 +6,7 @@ QT += core testlib
 TARGET = vaf_annotation_store_tests
 DESTDIR = $$VAF_BINARY_DIR
 SOURCES += tst_AnnotationStore.cpp
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                   $$BUILDLIB/Annotation.lib \
-                  $$BUILDLIB/ProjectStore.lib \
-                  $$BUILDLIB/Domain.lib
-LIBS += -lFoundation -lAnnotation -lProjectStore -lDomain -ladvapi32
+                  $$BUILDLIB/ProjectStore.lib
+LIBS += -lVisionAIFlowCore -lAnnotation -lProjectStore -ladvapi32

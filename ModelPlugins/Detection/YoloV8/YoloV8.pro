@@ -1,5 +1,6 @@
 VAF_ROOT = $$clean_path($$PWD/../../..)
 include($$VAF_ROOT/qmake/common.pri)
+include($$VAF_ROOT/qmake/libtorch_cuda.pri)
 
 TEMPLATE = lib
 CONFIG += dll
@@ -17,18 +18,15 @@ SOURCES += third_party/koba_jon/networks.cpp \
            third_party/koba_jon/loss.cpp \
            third_party/koba_jon/losses.cpp \
            yolov8trainer.cpp \
-           yolov8trainplugin.cpp
+           yolov8inference.cpp \
+           yolov8plugin.cpp
 HEADERS += third_party/koba_jon/networks.hpp \
            third_party/koba_jon/loss.hpp \
            third_party/koba_jon/losses.hpp \
            yolov8trainer.h \
-           yolov8trainplugin.h
-DISTFILES += yolov8trainplugin.json
-INCLUDEPATH += $$VAF_TORCH_ROOT/include \
-               $$VAF_TORCH_ROOT/include/torch/csrc/api/include \
-               $$VAF_CUDA_QMAKE_ROOT/include \
-               $$PWD/third_party/koba_jon
+           yolov8inference.h \
+           yolov8plugin.h
+DISTFILES += yolov8plugin.json
+INCLUDEPATH += $$PWD/third_party/koba_jon
 PRE_TARGETDEPS += $$BUILDLIB/PluginApi.lib
-LIBS += -lPluginApi \
-        -L$$VAF_CUDA_QMAKE_ROOT/lib/x64 -lcudart \
-        -L$$VAF_TORCH_ROOT/lib -ltorch -ltorch_cpu -ltorch_cuda -lc10 -lc10_cuda
+LIBS += -lPluginApi

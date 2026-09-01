@@ -284,10 +284,6 @@ void DataSetForm::toProDataGet(bool isadd)
                                << QString("%1").arg(m_YtRoiLabelSet.m_SetLabeset[0].Name) << "\n";
                         m_ValLabelSetfilename[0].append(
                             QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath));
-                        Trainout << QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath)
-                                 << "\t" << QString("%1").arg(m_YtRoiLabelSet.m_SetLabeset[0].Name) << "\n";
-                        m_TrainLabelSetfilename[0].append(
-                            QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath));
                     }
                     else
                     {
@@ -442,12 +438,6 @@ void DataSetForm::toProDataGet(bool isadd)
                                   .arg(temdirSave.path())
                                   .arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex))
                            << "\n";
-
-                    Trainout << QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath) << ","
-                             << QString("%1/%2.txt")
-                                    .arg(temdirSave.path())
-                                    .arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex))
-                             << "\n";
                 }
                 else
                 {

@@ -1,4 +1,5 @@
 #include "yolov8trainer.h"
+#include "yolov8inference.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -11,14 +12,13 @@
 
 #include <cuda_runtime_api.h>
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QLibrary>
+#include <QJsonArray>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -45,32 +45,6 @@ constexpr double kLambdaBox = 0.05;
 constexpr double kLambdaObjectness = 1.0;
 constexpr double kLambdaClass = 0.5;
 constexpr double kLambdaDfl = 0.005;
-
-bool LoadTorchCudaBackend(QString *errorMessage)
-{
-    static QLibrary torchCudaLibrary;
-    if (torchCudaLibrary.isLoaded())
-    {
-        return true;
-    }
-
-    const QString libraryPath = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("torch_cuda.dll"));
-    if (!QFileInfo::exists(libraryPath))
-    {
-        *errorMessage = QString(u8"YOLOv8 的 LibTorch CUDA 后端不存在: %1").arg(libraryPath);
-        return false;
-    }
-
-    torchCudaLibrary.setFileName(libraryPath);
-    torchCudaLibrary.setLoadHints(QLibrary::ResolveAllSymbolsHint | QLibrary::PreventUnloadHint);
-    if (!torchCudaLibrary.load())
-    {
-        *errorMessage =
-            QString(u8"无法加载 YOLOv8 的 LibTorch CUDA 后端 %1: %2").arg(libraryPath, torchCudaLibrary.errorString());
-        return false;
-    }
-    return true;
-}
 
 struct Annotation final
 {
@@ -342,6 +316,12 @@ bool SaveCheckpoint(const QString &checkpointPath,
     metadata.insert(QStringLiteral("epoch"), epoch);
     metadata.insert(QStringLiteral("model_variant"), modelVariant);
     metadata.insert(QStringLiteral("class_count"), config.classNames.size());
+    QJsonArray classNames;
+    for (const QString &className : config.classNames)
+    {
+        classNames.append(className);
+    }
+    metadata.insert(QStringLiteral("class_names"), classNames);
     metadata.insert(QStringLiteral("image_width"), config.imageWidth);
     metadata.insert(QStringLiteral("image_height"), config.imageHeight);
     metadata.insert(QStringLiteral("validation_loss"), validationLoss);
@@ -466,7 +446,7 @@ bool Validate(const std::vector<Sample> &samples,
 
 bool YoloV8Trainer::initialize(const plugin_api::DetectionTrainConfig &config, QString *errorMessage)
 {
-    if (!LoadTorchCudaBackend(errorMessage))
+    if (!EnsureYoloV8TorchCudaBackend(errorMessage))
     {
         return false;
     }
@@ -499,10 +479,63 @@ bool YoloV8Trainer::initialize(const plugin_api::DetectionTrainConfig &config, Q
         *errorMessage = QString(u8"YOLOv8 模型规格无效: %1").arg(variant);
         return false;
     }
+    if (!config.pretrainedPath.isEmpty() && !config.resumeCheckpointPath.isEmpty())
+    {
+        *errorMessage = QString(u8"YOLOv8 训练不能同时指定预训练权重和恢复 checkpoint");
+        return false;
+    }
     if (!config.pretrainedPath.isEmpty())
     {
-        *errorMessage = QString(u8"YOLOv8 训练插件不支持加载外部预训练模型");
-        return false;
+        int cudaDeviceCount = 0;
+        const cudaError_t cudaStatus = cudaGetDeviceCount(&cudaDeviceCount);
+        const int libTorchDeviceCount = torch::cuda::device_count();
+        if (cudaStatus != cudaSuccess || config.gpuId < 0 || config.gpuId >= cudaDeviceCount ||
+            config.gpuId >= libTorchDeviceCount)
+        {
+            *errorMessage =
+                QString(u8"YOLOv8 无法使用 GPU %1 加载预训练权重, CUDA Runtime 设备数: %2, LibTorch 设备数: %3")
+                    .arg(config.gpuId)
+                    .arg(cudaDeviceCount)
+                    .arg(libTorchDeviceCount);
+            return false;
+        }
+
+        try
+        {
+            YoloV8NetworkConfig networkConfig;
+            networkConfig.inputChannels = kInputChannels;
+            networkConfig.classCount = static_cast<size_t>(config.classNames.size());
+            networkConfig.regMax = kRegMax;
+            networkConfig.variant = variant.toStdString();
+            const torch::Device device(torch::kCUDA, config.gpuId);
+            YOLOv8 model(networkConfig);
+            model->to(device);
+            torch::optim::Adam optimizer(
+                model->parameters(),
+                torch::optim::AdamOptions(config.learningRate).betas(std::make_tuple(kAdamBeta1, kAdamBeta2)));
+            int pretrainedEpoch = 0;
+            if (!LoadCheckpoint(config.pretrainedPath,
+                                model,
+                                optimizer,
+                                variant,
+                                config,
+                                device,
+                                &pretrainedEpoch,
+                                errorMessage))
+            {
+                return false;
+            }
+        }
+        catch (const c10::Error &error)
+        {
+            *errorMessage = QString(u8"YOLOv8 预训练权重加载失败: %1").arg(QString::fromLocal8Bit(error.what()));
+            return false;
+        }
+        catch (const std::exception &error)
+        {
+            *errorMessage = QString(u8"YOLOv8 预训练权重校验失败: %1").arg(QString::fromLocal8Bit(error.what()));
+            return false;
+        }
     }
 
     m_validationDatasetPath = QDir(QFileInfo(config.datasetPath).absolutePath()).filePath(QStringLiteral("val.csv"));
@@ -583,18 +616,24 @@ YoloV8Trainer::train(std::atomic_bool &stopRequested, const ProgressCallback &on
         Loss criterion(static_cast<long>(m_config.classNames.size()), kRegMax);
 
         int startEpoch = 0;
-        if (!m_config.resumeCheckpointPath.isEmpty() && !LoadCheckpoint(m_config.resumeCheckpointPath,
-                                                                        model,
-                                                                        optimizer,
-                                                                        m_modelVariant,
-                                                                        m_config,
-                                                                        device,
-                                                                        &startEpoch,
-                                                                        errorMessage))
+        const QString initialWeightsPath =
+            m_config.resumeCheckpointPath.isEmpty() ? m_config.pretrainedPath : m_config.resumeCheckpointPath;
+        if (!initialWeightsPath.isEmpty() && !LoadCheckpoint(initialWeightsPath,
+                                                             model,
+                                                             optimizer,
+                                                             m_modelVariant,
+                                                             m_config,
+                                                             device,
+                                                             &startEpoch,
+                                                             errorMessage))
         {
             return TrainRunResult::Failed;
         }
-        if (startEpoch >= m_config.epochs)
+        if (!m_config.pretrainedPath.isEmpty())
+        {
+            startEpoch = 0;
+        }
+        if (!m_config.resumeCheckpointPath.isEmpty() && startEpoch >= m_config.epochs)
         {
             *errorMessage = QString(u8"恢复 checkpoint 的轮次已达到或超过当前训练轮次: %1").arg(startEpoch);
             return TrainRunResult::Failed;

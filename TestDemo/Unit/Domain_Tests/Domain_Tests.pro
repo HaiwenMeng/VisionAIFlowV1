@@ -7,6 +7,5 @@ TARGET = Domain_Tests
 OBJECTS_DIR = $$PWD/release
 DESTDIR = $$VAF_BINARY_DIR
 SOURCES += tst_JobState.cpp
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
-                  $$BUILDLIB/Domain.lib
-LIBS += -lFoundation -lDomain
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib
+LIBS += -lVisionAIFlowCore

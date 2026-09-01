@@ -1,6 +1,7 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 
+# Build the shared libraries in dependency order.
 SUBDIRS += Core \
            Data \
            Runtime \
@@ -13,4 +14,3 @@ PluginApi.file = PluginApi/PluginApi.pro
 
 Data.depends = Core
 Runtime.depends = Core
-PluginApi.depends = Core

@@ -7,6 +7,6 @@ TARGET = Tensor_Tests
 OBJECTS_DIR = $$PWD/release
 DESTDIR = $$VAF_BINARY_DIR
 SOURCES += tst_GpuLease.cpp
-PRE_TARGETDEPS += $$BUILDLIB/Foundation.lib \
+PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                   $$BUILDLIB/Tensor.lib
-LIBS += -lFoundation -lTensor
+LIBS += -lVisionAIFlowCore -lTensor

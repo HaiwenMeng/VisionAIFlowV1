@@ -11,7 +11,7 @@ struct DetectionPluginMetadata final
 {
     QString filePath;
     PluginInfo info;
-    DetectionTrainerCapabilities capabilities;
+    DetectionPluginCapabilities capabilities;
 };
 
 class VISIONAIFLOW_PLUGIN_API_EXPORT PluginManager final
@@ -23,13 +23,13 @@ public:
     QVector<DetectionPluginMetadata> scanDetectionPluginMetadata(const QString &directoryPath,
                                                                  QStringList *errorMessages) const;
     bool loadDetectionPlugin(const QString &filePath);
-    IDetectionTrainer *detectionTrainer() const;
+    IDetectionPlugin *detectionPlugin() const;
     QString errorMessage() const;
 
 private:
     QVector<QPluginLoader *> m_loadedPluginLoaders;
-    QHash<QString, IDetectionTrainer *> m_loadedTrainers;
-    IDetectionTrainer *m_detectionTrainer{nullptr};
+    QHash<QString, IDetectionPlugin *> m_loadedPlugins;
+    IDetectionPlugin *m_detectionPlugin{nullptr};
     QString m_errorMessage;
 };
 } // namespace visionaiflow::plugin_api
