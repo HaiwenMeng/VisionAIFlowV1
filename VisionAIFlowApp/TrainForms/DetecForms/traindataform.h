@@ -41,12 +41,18 @@ private slots:
 
 private:
     void InitChart();
+    void RefreshPluginList();
+    void UpdatePluginUiState();
     void SetTrainingUiState(bool running);
     void AppendLog(const QString &message);
     void ShowUnsupported(const QString &featureName);
     void UpdateTaskProgress(const QString &progress);
     QString WeightsDirectory() const;
+    QString SelectedPluginPath() const;
+    QString SelectedPluginName() const;
 
     Ui::TrainDataForm *ui;
     DetectTrainingController *m_trainingController;
+    QString m_lastModelPath;
+    QString m_lastBestCheckpointPath;
 };

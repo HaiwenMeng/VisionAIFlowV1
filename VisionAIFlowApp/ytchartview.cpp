@@ -148,7 +148,7 @@ void YtChartView::toAddLineSerices(QColor color, QString name, int axisType)
 
 void YtChartView::toInsertData(int index, int xPos, int y)
 {
-    if (index < 0 || index > m_LineSerices.size())
+    if (index < 0 || index >= m_LineSerices.size())
     {
         return;
     }
@@ -181,8 +181,7 @@ void YtChartView::toInsertData(int index, int xPos, int y)
         }
     }
 
-    // 替代掉默认的生成的点
-    m_LineSerices.at(index)->replace(xPos, m_LineSerices.at(index)->at(xPos).x(), y);
+    m_LineSerices.at(index)->append(xPos, y);
 }
 
 QPoint YtChartView::toGetData(int index, int xPos)
@@ -200,7 +199,7 @@ QPoint YtChartView::toGetData(int index, int xPos)
 
 void YtChartView::toInsertData(int index, int xPos, float y)
 {
-    if (index < 0 || index > m_LineSerices.size())
+    if (index < 0 || index >= m_LineSerices.size())
     {
         return;
     }
@@ -232,8 +231,7 @@ void YtChartView::toInsertData(int index, int xPos, float y)
         }
     }
 
-    qDebug() << u8"-----------X坐标-----------" << m_LineSerices.at(index)->at(xPos).x();
-    m_LineSerices.at(index)->replace(xPos, m_LineSerices.at(index)->at(xPos).x(), y);
+    m_LineSerices.at(index)->append(xPos, y);
     emit toUpdateAxisVal();
 }
 
@@ -479,14 +477,6 @@ void YtChartView::toSetXAxis(double min, double max, int Step, int tickCount, QS
     m_XTickCount = tickCount;
     m_xLabel = title;
     m_Step = Step;
-
-    for (int i = 0; i < max; i++)
-    {
-        for (int j = 0; j < m_LineSerices.size(); j++)
-        {
-            m_LineSerices.at(j)->append(Step * i, 0);
-        }
-    }
 
     if (isRefresh)
     {

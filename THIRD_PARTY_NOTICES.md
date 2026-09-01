@@ -11,3 +11,8 @@
 | TensorRT | 10.0.1.6 | 待 NVIDIA EULA 审批 |
 | OpenVINO | 2026.2 | 待归档与审批 |
 | ONNX / Protobuf / OpenCV / spdlog / GoogleTest / nlohmann-json | 见 lock 文件 | 待归档与审批 |
+| koba-jon/pytorch_cpp YOLOv8 | commit `6f9d209` | MIT, 已保留来源和许可证声明 |
+
+## koba-jon/pytorch_cpp
+
+YOLOv8 Detection 插件的网络和损失实现基于 [koba-jon/pytorch_cpp](https://github.com/koba-jon/pytorch_cpp)，Copyright (c) 2020 koba-jon，MIT License。

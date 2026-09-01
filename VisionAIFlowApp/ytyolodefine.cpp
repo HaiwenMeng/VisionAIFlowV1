@@ -1903,70 +1903,31 @@ static QString m_PythonPath; //
 
 QString YtYoloDefine::toGetWorkPath()
 {
-    QDir temdir(m_WorkPath);
-    if (m_WorkPath.isEmpty() || !temdir.exists())
+    if (m_WorkPath.isEmpty())
     {
-        // 尝试从本地文件读取
         QFile file(QString("%1/%2.json").arg(QDir::currentPath()).arg("YtYoloDefine"));
-        if (!file.open(QIODevice::ReadOnly))
+        if (file.open(QIODevice::ReadOnly))
         {
-            //
-            if (QDialog::Accepted == QMessageBox::question(0, u8"警告", u8"工作目录不存在,请选择!", u8"取消", u8"确认"))
-            {
-                m_WorkPath = QFileDialog::getExistingDirectory();
-            }
-            else
-            {
-                exit(0);
-            }
-        }
-        else
-        {
-            // 文件打开成功
-            QByteArray jsonData = file.readAll();
+            const QJsonDocument jsonDocument = QJsonDocument::fromJson(file.readAll());
             file.close();
-            // 从QByteArray解析JSON文档
-            QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonData);
-
-            // 确保JSON文档是一个对象
-            if (!jsonDoc.isObject())
-            {
-                if (QDialog::Accepted ==
-                    QMessageBox::question(0, u8"警告", u8"工作目录不存在,请选择!", u8"取消", u8"确认"))
-                {
-                    m_WorkPath = QFileDialog::getExistingDirectory();
-                }
-                else
-                {
-                    exit(0);
-                }
-            }
-            //
-            QJsonObject jsonObject = jsonDoc.object();
-            //
-            //
-
-            m_WorkPath = jsonObject["WorkPath"].toString();
-            temdir.setPath(m_WorkPath);
-            if (!temdir.exists())
-            {
-                if (false == temdir.mkpath(m_WorkPath))
-                {
-                    if (QDialog::Accepted ==
-                        QMessageBox::question(0, u8"警告", u8"工作目录不存在,请选择!", u8"取消", u8"确认"))
-                    {
-                        m_WorkPath = QFileDialog::getExistingDirectory();
-                    }
-                    else
-                    {
-                        exit(0);
-                    }
-                }
-            }
-            //
+            m_WorkPath = jsonDocument.object().value(QStringLiteral("WorkPath")).toString();
         }
-        toSetWorkPath(m_WorkPath);
     }
+
+    if (m_WorkPath.isEmpty() || !QDir(m_WorkPath).exists())
+    {
+        const QString workPath = QFileDialog::getExistingDirectory(nullptr,
+                                                                   QString(u8"选择工作目录"),
+                                                                   QDir::homePath(),
+                                                                   QFileDialog::ShowDirsOnly);
+        if (workPath.isEmpty())
+        {
+            qCritical().noquote() << QString(u8"未选择工作目录");
+            return QString();
+        }
+        toSetWorkPath(workPath);
+    }
+
     return m_WorkPath;
 }
 
@@ -1976,27 +1937,15 @@ void YtYoloDefine::toSetWorkPath(QString WorkPath)
     {
         m_WorkPath = WorkPath;
     }
-    // 强制保存
     QFile file(QString("%1/%2.json").arg(QDir::currentPath()).arg("YtYoloDefine"));
     if (!file.open(QIODevice::WriteOnly))
     {
-
+        qCritical().noquote() << QString(u8"无法保存工作目录配置: %1").arg(file.fileName());
         return;
     }
-    // 创建一个JSON对象
     QJsonObject jsonObject;
-
-    if (m_PythonPath.isEmpty())
-    {
-        toGetPythonPath();
-    }
-
     jsonObject.insert("WorkPath", m_WorkPath);
-    jsonObject.insert("PythonPath", m_PythonPath);
-
-    // 创建一个JSON文档
     QJsonDocument jsonDoc(jsonObject);
-    // 写入到文件
     file.write(jsonDoc.toJson(QJsonDocument::Indented));
     file.close();
 }

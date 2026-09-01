@@ -1,5 +1,5 @@
 #include "filecopysetdlg.h"
-#include "release/ui_filecopysetdlg.h"
+#include "ui_filecopysetdlg.h"
 #include <QFileDialog>
 #include <QDir>
 #include <QFile>
@@ -139,7 +139,6 @@ bool LoadImage(QImage &outImage, const QString &fileName, QString &errorMessage)
 FileCopySetDlg::FileCopySetDlg(QWidget *parent) : QDialog(parent), ui(new Ui::FileCopySetDlg)
 {
     ui->setupUi(this);
-    // ui->ytRoiShowDisp->toSetBGColor(QColor(56, 62, 73));
 }
 
 FileCopySetDlg::~FileCopySetDlg()
@@ -226,9 +225,6 @@ void FileCopySetDlg::on_PB_Cancle_clicked()
 
 void FileCopySetDlg::on_LW_FileList_itemSelectionChanged()
 {
-
-    //
-    // qDebug()<<"MainDlg::on_LW_FileList_itemSelectionChanged"<<ui->LW_FileList->currentItem()->text()<<".ytimage";
     QString errorMessage;
     if (!LoadImage(m_GetImage, ui->LW_FileList->currentItem()->text(), errorMessage))
     {
@@ -236,43 +232,22 @@ void FileCopySetDlg::on_LW_FileList_itemSelectionChanged()
         QMessageBox::critical(this, QString(u8"图像读取失败"), errorMessage);
         return;
     }
-    ui->ytRoiShowDisp->toSetImage(m_GetImage);
-}
-
-void FileCopySetDlg::on_CB_RoiSet_stateChanged(int arg1)
-{
-    if (arg1)
+    if (!ui->baseAnnoDisplayWidget->setImage(m_GetImage, &errorMessage))
     {
-        CMvRect temrect = CMvRect(0, 0, m_GetImage.width(), m_GetImage.height());
-        ui->ytRoiShowDisp->addROI(LabelSet::LrectangleROI, temrect.Data(), "");
-    }
-    else
-    {
-        ui->ytRoiShowDisp->toRemoveAllRoi();
+        QMessageBox::critical(this, QString(u8"图像显示失败"), errorMessage);
     }
 }
 
 bool FileCopySetDlg::toGetCopyImage(QString DestPath)
 {
     int count = ui->LW_FileList->count();
-    QRect getRect;
     QDir temdir;
     temdir.mkpath(DestPath);
     if (count < 1)
     {
         return false;
     }
-    if (ui->CB_RoiSet->isChecked())
-    {
-        CMvRect temrct;
-        temrct.GetData(ui->ytRoiShowDisp->getROI(""));
-        getRect = QRect(temrct.LeftTop.x, temrct.LeftTop.y, int(temrct.cx) / 4 * 4, int(temrct.cy) / 4 * 4);
-    }
     QString OldName, NewName;
-
-    CMvRect temrect;
-    temrect.GetData(ui->ytRoiShowDisp->getROI(""));
-    QRect CropRect(temrect.LeftTop.x, temrect.LeftTop.y, int(temrect.cx) / 4 * 4, int(temrect.cy) / 4 * 4);
 
     for (int i = 0; i < count; i++)
     {
@@ -281,22 +256,8 @@ bool FileCopySetDlg::toGetCopyImage(QString DestPath)
         qInfo() << QString(u8"拷贝文件") << OldName;
         qInfo() << QString(u8"目标位置") << i << NewName;
 
-        if (!ui->CB_RoiSet->isChecked())
-        {
-            bool iscopy = QFile::copy(OldName, NewName);
-            qDebug() << i << iscopy << OldName << NewName;
-        }
-        else
-        {
-            QString errorMessage;
-            if (!LoadImage(m_GetImage, OldName, errorMessage))
-            {
-                qWarning() << errorMessage;
-                QMessageBox::critical(this, QString(u8"图像读取失败"), errorMessage);
-                return false;
-            }
-            m_GetImage.copy(CropRect).save(DestPath + QString("/%1.png").arg(i + 1));
-        }
+        bool iscopy = QFile::copy(OldName, NewName);
+        qDebug() << i << iscopy << OldName << NewName;
     }
 
     return true;

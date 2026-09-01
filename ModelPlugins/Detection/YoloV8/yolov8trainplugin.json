@@ -1,0 +1,7 @@
+{
+    "plugin_id": "visionaiflow.detection.yolov8",
+    "display_name": "YOLOv8",
+    "version": "1.0.0",
+    "task_type": "detection",
+    "supports_export": false
+}

@@ -3,7 +3,8 @@
 
 #include <QWidget>
 
-namespace Ui {
+namespace Ui
+{
 class SystemForm;
 }
 
@@ -15,10 +16,10 @@ public:
     explicit SystemForm(QWidget *parent = nullptr);
     ~SystemForm();
 
+    void Refresh();
+
 private slots:
     void on_PB_ViewWorkPath_clicked();
-
-    void on_PB_PythonPath_clicked();
 
 private:
     Ui::SystemForm *ui;

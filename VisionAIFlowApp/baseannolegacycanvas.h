@@ -19,10 +19,7 @@ public:
     void toSetRoiDefaltName(const QString &label);
     void toSetHighlightedRoiKey(const QString &key);
     void addROI(int roiType, const QVector<double> &data, const QString &label);
-    void toAppItemLabel(const QString &label,
-                        int roiType,
-                        const QVector<double> &data,
-                        const QString &key = QString());
+    void toAppItemLabel(const QString &label, int roiType, const QVector<double> &data, const QString &key = QString());
     void toRemoveRoiByKey(const QString &key);
     QVector<double> getROI(const QString &key) const;
     void toSetBGColor(const QColor &color);
@@ -54,5 +51,6 @@ private:
     QStringList m_labels;
     QVector<QColor> m_colors;
     BaseAnnoAnnotationList m_overlayAnnotations;
+    QVector<DispTxt> m_overlayTexts;
     QVector<QPair<YtSetShowtObj *, QString>> m_overlaySources;
 };

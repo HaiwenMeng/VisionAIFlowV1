@@ -13,24 +13,26 @@
 
 class TrtSam3;
 
-class SamInferenceBridge {
+class SamInferenceBridge
+{
 public:
     SamInferenceBridge();
     ~SamInferenceBridge();
 
-    bool initialize(QString* errorMessage = nullptr);
+    bool initialize(QString *errorMessage = nullptr);
+    void release();
     bool isInitialized() const;
 
-    bool setCurrentImage(const QString& imagePath, QString* errorMessage = nullptr);
+    bool setCurrentImage(const QString &imagePath, QString *errorMessage = nullptr);
 
-    SamInferResult inferByPoint(const QPointF& imagePoint, const QString& labelName);
-    SamInferResult inferByRect(const QRectF& imageRect, const QString& labelName);
-    SamInferResult inferByRects(const QVector<QRectF>& imageRects, const QString& labelName);
-    SamInferResult inferSmallTargetByRect(const QRectF& imageRect, const QString& labelName);
+    TrtSam3InferResult inferByPoint(const QPointF &imagePoint, const QString &labelName);
+    TrtSam3InferResult inferByRect(const QRectF &imageRect, const QString &labelName);
+    TrtSam3InferResult inferByRects(const QVector<QRectF> &imageRects, const QString &labelName);
+    TrtSam3InferResult inferSmallTargetByRect(const QRectF &imageRect, const QString &labelName);
 
 private:
-    bool validateReady(SamInferResult* result) const;
-    bool restoreCurrentImage(QString* errorMessage = nullptr);
+    bool validateReady(TrtSam3InferResult *result) const;
+    bool restoreCurrentImage(QString *errorMessage = nullptr);
 
     bool m_initialized = false;
     QString m_currentImagePath;

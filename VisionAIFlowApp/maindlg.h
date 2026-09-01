@@ -3,6 +3,9 @@
 #include <QWidget>
 
 class QPushButton;
+class QMoveEvent;
+class QEvent;
+class QObject;
 
 namespace Ui
 {
@@ -15,6 +18,7 @@ class TrainDataForm;
 class ValSetForm;
 class CommonSetForm;
 class MainWindow;
+class SystemForm;
 
 class MainDlg final : public QWidget
 {
@@ -23,6 +27,10 @@ class MainDlg final : public QWidget
 public:
     explicit MainDlg(QWidget *parent = nullptr);
     ~MainDlg() override;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private slots:
     void OnTaskSelected(const QString &taskName);
@@ -40,6 +48,7 @@ private:
     void SetCurrentNavButton(QPushButton *button);
     void ShowUnavailable(const QString &featureName);
     void ReportError(const QString &errorMessage);
+    void UpdateWindowControlButtons();
 
     Ui::MainDlg *ui;
     ProJectForm *m_projectForm;
@@ -47,6 +56,11 @@ private:
     TrainDataForm *m_trainDataForm;
     ValSetForm *m_valSetForm;
     CommonSetForm *m_commonSetForm;
-    MainWindow *m_semiAutoAnnoForm;
+    MainWindow *m_semiAutoAnnoForm = nullptr;
+    SystemForm *m_systemForm;
     QString m_taskName;
+    QPoint m_titleBarDragStartPosition;
+    QRect m_titleBarDragStartGeometry;
+    bool m_isConstrainingPosition = false;
+    bool m_isTitleBarDragging = false;
 };

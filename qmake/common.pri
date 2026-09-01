@@ -23,6 +23,7 @@ CONFIG -= debug debug_and_release staticlib warn_on
 DESTDIR = $$VAF_ROOT/BINX64
 BUILDLIB = $$VAF_ROOT/BuildLib
 VAF_MODELS_DIR = $$DESTDIR/model
+VAF_AI_MODEL_PLUGINS_DIR = $$DESTDIR/AIModelPlugins
 VAF_LIBRARY_DIR = $$BUILDLIB
 VAF_BINARY_DIR = $$DESTDIR
 VAF_ROOT_NATIVE = $$replace(VAF_ROOT, /, \\\\)
@@ -40,16 +41,7 @@ INCLUDEPATH += $$VAF_ROOT/BaseProject/Core/Foundation/include \
                $$VAF_ROOT/BaseProject/Data/ProjectStore/include \
                $$VAF_ROOT/BaseProject/Runtime/Ipc/include \
                $$VAF_ROOT/BaseProject/Runtime/QtFoundation/include \
-               $$VAF_ROOT/BaseProject/BaseModel/Models_Api/include \
-               $$VAF_ROOT/BaseProject/BaseModel/Models_Common/Classify/include \
-               $$VAF_ROOT/BaseProject/BaseModel/Models_Common/Detection/include \
-               $$VAF_ROOT/BaseProject/AiEngine/ModelGraph/include \
-               $$VAF_ROOT/BaseProject/AiEngine/Tensor/include \
-               $$VAF_ROOT/BaseProject/AiEngine/Training/include \
-               $$VAF_ROOT/BaseProject/AiEngine/TrainingState/include \
-               $$VAF_ROOT/BaseProject/AiEngine/Export/include \
-               $$VAF_ROOT/ModelPlugins/Classify/Linear/include \
-               $$VAF_ROOT/ModelPlugins/Detection/Yolo11/include
+               $$VAF_ROOT/BaseProject/PluginApi/include
 
 defineReplace(vaf_library_output) {
     return($$BUILDLIB)

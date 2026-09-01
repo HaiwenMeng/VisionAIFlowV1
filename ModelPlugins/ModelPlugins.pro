@@ -1,8 +1,5 @@
 TEMPLATE = subdirs
 CONFIG += ordered
 
-SUBDIRS += Classify \
-           Detection
-
-Classify.file = Classify/Classify.pro
+SUBDIRS += Detection
 Detection.file = Detection/Detection.pro

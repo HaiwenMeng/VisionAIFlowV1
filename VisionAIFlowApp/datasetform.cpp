@@ -44,7 +44,6 @@ DataSetForm::~DataSetForm()
 void DataSetForm::toSetProcessName(QString Setname)
 {
     m_ProcessName = Setname;
-    ui->LE_CurentProName->setText(m_ProcessName);
 }
 
 void DataSetForm::toInitShow()
@@ -79,7 +78,8 @@ QFileInfoList DataSetForm::toGetCheckedDataSheetDirList()
 }
 void DataSetForm::toProDataGet(bool isadd)
 {
-    qInfo() << "DataSetForm::toProDataGet begin" << "process" << m_ProcessName << "isadd" << isadd;
+    qInfo() << "DataSetForm::toProDataGet begin"
+            << "process" << m_ProcessName << "isadd" << isadd;
     m_YtYoloSetPro.toLoadData(YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName);
     qInfo() << "DataSetForm::toProDataGet labels" << m_YtYoloSetPro.m_NameList.size() << m_YtYoloSetPro.m_NameList;
     const int runIndex = m_DataGenRunIndex;
@@ -497,8 +497,9 @@ void DataSetForm::toProDataGet(bool isadd)
         Trainout << m_BackGroudImgname.at(j) << ',' << QString("SIGNAL_BACKGROUND_IMG") << "\n";
     }
 
-    qInfo() << "DataSetForm::toProDataGet finish" << "train groups" << m_TrainLabelSetfilename.size() << "val groups"
-            << m_ValLabelSetfilename.size() << "bg" << m_BackGroudImgname.size();
+    qInfo() << "DataSetForm::toProDataGet finish"
+            << "train groups" << m_TrainLabelSetfilename.size() << "val groups" << m_ValLabelSetfilename.size() << "bg"
+            << m_BackGroudImgname.size();
     Trinfile.close();
     Valuefile.close();
 
@@ -679,7 +680,8 @@ void DataSetForm::toSaveData(int changele, bool datapp)
     outt << QString("train: %1").arg("train") << "\n";
     outt << QString("val: %1").arg("val") << "\n";
 
-    outt << "names:" << "\n";
+    outt << "names:"
+         << "\n";
     for (int i = 0; i < m_YtYoloSetPro.m_NameList.size(); i++)
     {
         outt << QString("  %1: %2").arg(i).arg(m_YtYoloSetPro.m_NameList.at(i)) << "\n";
@@ -687,7 +689,8 @@ void DataSetForm::toSaveData(int changele, bool datapp)
     outt << QString("channels: %1").arg(changele) << "\n";
     if (datapp)
     {
-        outt << "augment:" << "\n";
+        outt << "augment:"
+             << "\n";
         outt << QString("  %1: %2").arg("flipud").arg(0.5) << "\n";
         outt << QString("  %1: %2").arg("fliplr").arg(0.5) << "\n";
         outt << QString("  %1: %2").arg("mosaic").arg(0.5) << "\n";
@@ -808,8 +811,8 @@ void DataSetForm::on_PB_RunDataGen_clicked()
     // toProDataGet();
     m_DataGenErrorMessage.clear();
     m_DataGenRunIndex = ui->comboBox->currentIndex();
-    qInfo() << "DataSetForm::on_PB_RunDataGen_clicked start" << "process" << m_ProcessName << "run index"
-            << m_DataGenRunIndex;
+    qInfo() << "DataSetForm::on_PB_RunDataGen_clicked start"
+            << "process" << m_ProcessName << "run index" << m_DataGenRunIndex;
     m_GetKeys.clear();
     QThreadPool::globalInstance()->start(
         [this]()
@@ -846,6 +849,7 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
                                           Qt::darkGreen));
         }
         ui->ytRoiShowDisp->toSetImage(temim);
+        ui->ytRoiShowDisp->toUpdateShow();
 
         return;
     }
@@ -877,7 +881,7 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
         m_YtRoiLabelSet.toGenFourPosOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
     }
     ui->ytRoiShowDisp->toSetImage(QImage(item->text(0).left(getindex) + "/" + m_YtRoiLabelSet.m_imagePath));
-    // 构造显示图层
+    ui->ytRoiShowDisp->toUpdateShow();
 }
 
 void DataSetForm::slotFinish()

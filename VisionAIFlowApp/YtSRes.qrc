@@ -34,7 +34,7 @@
         <file alias="ResourYolo/Selfbutton/已标注.png">ResourYolo/Selfbutton/annotated.png</file>
         <file alias="ResourYolo/Selfbutton/项目管理.png">ResourYolo/Selfbutton/project.png</file>
         <file>ResourYolo/Selfbutton/line.png</file>
-        <file>styles/dark.qss</file>
+        <file alias="styles/application-dark.qss">styles/dark.qss</file>
         <file>ResourYolo/CommercialIcons/check.svg</file>
         <file>ResourYolo/CommercialIcons/train.svg</file>
     </qresource>

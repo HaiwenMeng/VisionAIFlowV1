@@ -3,7 +3,8 @@
 
 #include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class FileCopySetDlg;
 }
 
@@ -30,18 +31,15 @@ private slots:
 
     void on_LW_FileList_itemSelectionChanged();
 
-    void on_CB_RoiSet_stateChanged(int arg1);
-
 private:
     Ui::FileCopySetDlg *ui;
+
 public:
     QImage m_GetImage;
-public:
     bool toGetCopyImage(QString DestPath);
-     QString toGetTitleName();
-     void toSetTitleName(QString StetitleName);
-     QStringList toGetFileList();
-
+    QString toGetTitleName();
+    void toSetTitleName(QString StetitleName);
+    QStringList toGetFileList();
 };
 
 #endif // FILECOPYSETDLG_H

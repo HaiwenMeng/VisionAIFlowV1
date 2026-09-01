@@ -3,8 +3,7 @@
 #include <QDebug>
 #include <QPainter>
 
-BaseAnnoLegacyCanvas::BaseAnnoLegacyCanvas(QWidget *parent)
-    : BaseAnnoDisplayWidget(parent)
+BaseAnnoLegacyCanvas::BaseAnnoLegacyCanvas(QWidget *parent) : BaseAnnoDisplayWidget(parent)
 {
     connect(this,
             &BaseAnnoDisplayWidget::annotationCreated,
@@ -111,6 +110,7 @@ void BaseAnnoLegacyCanvas::toSetBGColor(const QColor &color)
 void BaseAnnoLegacyCanvas::ClearAllOverPlayPtr()
 {
     m_overlayAnnotations.clear();
+    m_overlayTexts.clear();
     m_overlaySources.clear();
     update();
 }
@@ -118,6 +118,7 @@ void BaseAnnoLegacyCanvas::ClearAllOverPlayPtr()
 void BaseAnnoLegacyCanvas::ClearAllStdOverPlayPtr()
 {
     m_overlayAnnotations.clear();
+    m_overlayTexts.clear();
     m_overlaySources.clear();
     update();
 }
@@ -146,17 +147,18 @@ void BaseAnnoLegacyCanvas::addOverPlayPtr(YtSetShowtObj *overlay, const QString 
 
 void BaseAnnoLegacyCanvas::appendOverlay(YtSetShowtObj *overlay, const QString &name)
 {
+    const QString geometryCaption = overlay->m_DispTxt.isEmpty() ? name : QString();
+    m_overlayTexts.append(overlay->m_DispTxt);
 
     for (const DispRects &group : overlay->m_DispRects)
     {
         for (const CMvRect &rect : group.ShowDispRects)
         {
             QPolygonF points;
-            points << QPointF(rect.LeftTop.x, rect.LeftTop.y)
-                   << QPointF(rect.LeftTop.x + rect.cx, rect.LeftTop.y)
+            points << QPointF(rect.LeftTop.x, rect.LeftTop.y) << QPointF(rect.LeftTop.x + rect.cx, rect.LeftTop.y)
                    << QPointF(rect.LeftTop.x + rect.cx, rect.LeftTop.y + rect.cy)
                    << QPointF(rect.LeftTop.x, rect.LeftTop.y + rect.cy);
-            appendOverlayAnnotation(BaseAnnoShapeType::Rectangle, points, group.clrLine, name);
+            appendOverlayAnnotation(BaseAnnoShapeType::Rectangle, points, group.clrLine, geometryCaption);
         }
     }
 
@@ -167,7 +169,7 @@ void BaseAnnoLegacyCanvas::appendOverlay(YtSetShowtObj *overlay, const QString &
             QPolygonF points;
             points << QPointF(circle.center.x, circle.center.y)
                    << QPointF(circle.center.x + circle.radius, circle.center.y);
-            appendOverlayAnnotation(BaseAnnoShapeType::Circle, points, group.clrLine, name);
+            appendOverlayAnnotation(BaseAnnoShapeType::Circle, points, group.clrLine, geometryCaption);
         }
     }
 
@@ -183,7 +185,7 @@ void BaseAnnoLegacyCanvas::appendOverlay(YtSetShowtObj *overlay, const QString &
             {
                 points << QPointF(corner.x, corner.y);
             }
-            appendOverlayAnnotation(BaseAnnoShapeType::RotatedRectangle, points, group.clrLine, name);
+            appendOverlayAnnotation(BaseAnnoShapeType::RotatedRectangle, points, group.clrLine, geometryCaption);
         }
     }
 
@@ -196,7 +198,7 @@ void BaseAnnoLegacyCanvas::appendOverlay(YtSetShowtObj *overlay, const QString &
             {
                 points << QPointF(point.x, point.y);
             }
-            appendOverlayAnnotation(BaseAnnoShapeType::Polygon, points, group.clrLine, name);
+            appendOverlayAnnotation(BaseAnnoShapeType::Polygon, points, group.clrLine, geometryCaption);
         }
     }
 
@@ -206,7 +208,7 @@ void BaseAnnoLegacyCanvas::appendOverlay(YtSetShowtObj *overlay, const QString &
         {
             QPolygonF points;
             points << QPointF(line.st.x, line.st.y) << QPointF(line.ed.x, line.ed.y);
-            appendOverlayAnnotation(BaseAnnoShapeType::Line, points, group.clrLine, name);
+            appendOverlayAnnotation(BaseAnnoShapeType::Line, points, group.clrLine, geometryCaption);
         }
     }
 
@@ -222,6 +224,7 @@ void BaseAnnoLegacyCanvas::toUpdateShow()
 void BaseAnnoLegacyCanvas::rebuildOverlayAnnotations()
 {
     m_overlayAnnotations.clear();
+    m_overlayTexts.clear();
     for (const QPair<YtSetShowtObj *, QString> &source : m_overlaySources)
     {
         if (source.first == nullptr)
@@ -269,6 +272,14 @@ void BaseAnnoLegacyCanvas::paintEvent(QPaintEvent *event)
             painter.setPen(color);
             painter.drawText(points.boundingRect().topLeft() + QPointF(3.0, -3.0), annotation.caption);
         }
+    }
+
+    for (const DispTxt &text : m_overlayTexts)
+    {
+        painter.setFont(text.FtTxt);
+        painter.setPen(text.clrTxt);
+        const QPointF textPosition = mapImagePointToWidget(QPointF(text.Position.x, text.Position.y));
+        painter.drawText(textPosition + QPointF(0.0, painter.fontMetrics().ascent()), text.showText);
     }
 }
 
@@ -328,11 +339,11 @@ QVector<double> BaseAnnoLegacyCanvas::toData(const BaseAnnoAnnotation &annotatio
     LabelSet label;
     if (!label.toInitData(annotation.label,
                           annotation.shapeType == BaseAnnoShapeType::RotatedRectangle ? QStringLiteral("rotation")
-                          : annotation.shapeType == BaseAnnoShapeType::Circle       ? QStringLiteral("circle")
-                          : annotation.shapeType == BaseAnnoShapeType::Polygon      ? QStringLiteral("polygon")
-                          : annotation.shapeType == BaseAnnoShapeType::Point        ? QStringLiteral("point")
-                          : annotation.shapeType == BaseAnnoShapeType::Line         ? QStringLiteral("line")
-                                                                                       : QStringLiteral("rectangle"),
+                          : annotation.shapeType == BaseAnnoShapeType::Circle         ? QStringLiteral("circle")
+                          : annotation.shapeType == BaseAnnoShapeType::Polygon        ? QStringLiteral("polygon")
+                          : annotation.shapeType == BaseAnnoShapeType::Point          ? QStringLiteral("point")
+                          : annotation.shapeType == BaseAnnoShapeType::Line           ? QStringLiteral("line")
+                                                                                      : QStringLiteral("rectangle"),
                           annotation.pointsImage))
     {
         return {};
@@ -351,9 +362,9 @@ int BaseAnnoLegacyCanvas::colorForLabel(const QString &label) const
 }
 
 void BaseAnnoLegacyCanvas::appendOverlayAnnotation(const BaseAnnoShapeType shapeType,
-                                                    const QPolygonF &points,
-                                                    const QColor &color,
-                                                    const QString &name)
+                                                   const QPolygonF &points,
+                                                   const QColor &color,
+                                                   const QString &name)
 {
     if (points.isEmpty())
     {

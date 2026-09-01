@@ -10,7 +10,7 @@ cuda_compiler.input = CUDA_SOURCES
 cuda_compiler.output = $$OBJECTS_DIR/${QMAKE_FILE_BASE}_cuda.obj
 cuda_compiler.variable_out = OBJECTS
 cuda_compiler.CONFIG += no_link target_predeps
-cuda_compiler.commands = $$CUDA_NVCC --use-local-env -ccbin $$shell_quote($$CUDA_HOST_COMPILER) -c -std=c++17 -gencode arch=compute_75,code=sm_75 -Xcompiler /EHsc,/MD -I$$VAF_ROOT/BaseProject/Core/Foundation/include -I$$VAF_ROOT/SoftwareProject/Trainer_Host/include -I$$CUDA_QMAKE_ROOT/include -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
+cuda_compiler.commands = $$CUDA_NVCC --use-local-env -ccbin $$shell_quote($$CUDA_HOST_COMPILER) -c -std=c++17 -gencode arch=compute_75,code=sm_75 -Xcompiler /EHsc,/MD -I$$VAF_ROOT/BaseProject/Core/Foundation/include -I$$CUDA_QMAKE_ROOT/include -o ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
 QMAKE_EXTRA_COMPILERS += cuda_compiler
 
 LIBS += -L$$CUDA_QMAKE_ROOT/lib/x64 -lcudart -lcuda

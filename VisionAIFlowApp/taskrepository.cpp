@@ -138,7 +138,8 @@ bool TaskRepository::LoadTask(const QString &taskName, TaskDefinition *task, QSt
 {
     QJsonObject object;
     const QString path = DefineLabelPath(taskName);
-    if (!ReadJsonFile(path, &object, errorMessage))
+    const bool hasTaskDefinition = QFileInfo::exists(path);
+    if (hasTaskDefinition && !ReadJsonFile(path, &object, errorMessage))
     {
         return false;
     }
@@ -177,7 +178,47 @@ bool TaskRepository::LoadTask(const QString &taskName, TaskDefinition *task, QSt
         }
     }
 
-    if (!object.contains(QStringLiteral("TaskType")) || !object.contains(QStringLiteral("TaskProgress")))
+    bool migratedLegacyLabels = false;
+    if (task->labels.isEmpty())
+    {
+        const QDir taskDirectory(QDir(LabelRoot()).filePath(taskName));
+        const QFileInfoList dataSheetDirectories =
+            taskDirectory.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+        for (const QFileInfo &dataSheetDirectory : dataSheetDirectories)
+        {
+            const QString legacyConfigPath =
+                QDir(dataSheetDirectory.absoluteFilePath()).filePath(QStringLiteral("DefineLabel.json"));
+            if (!QFileInfo::exists(legacyConfigPath))
+            {
+                continue;
+            }
+
+            QJsonObject legacyObject;
+            if (!ReadJsonFile(legacyConfigPath, &legacyObject, errorMessage))
+            {
+                return false;
+            }
+
+            const QJsonArray legacyLabels = legacyObject.value(QStringLiteral("NameList")).toArray();
+            if (legacyLabels.isEmpty())
+            {
+                continue;
+            }
+
+            const QJsonArray legacyColors = legacyObject.value(QStringLiteral("ClorDefine")).toArray();
+            for (qsizetype index = 0; index < legacyLabels.size(); ++index)
+            {
+                task->labels.append(legacyLabels.at(index).toString());
+                task->colors.append(index < legacyColors.size() ? QColor::fromRgb(legacyColors.at(index).toInt())
+                                                                : DefaultColor(index));
+            }
+            migratedLegacyLabels = true;
+            break;
+        }
+    }
+
+    if (!hasTaskDefinition || migratedLegacyLabels || !object.contains(QStringLiteral("TaskType")) ||
+        !object.contains(QStringLiteral("TaskProgress")))
     {
         return SaveTask(*task, errorMessage);
     }

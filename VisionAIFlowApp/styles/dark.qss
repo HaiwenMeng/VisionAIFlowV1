@@ -11,6 +11,43 @@ QWidget#MainDlg {
     background: #0D1117;
 }
 
+QFrame#titleBar {
+    background: #10141B;
+    border: 1px solid #273244;
+    border-radius: 6px;
+}
+
+QLabel#LB_WindowTitle {
+    color: #E6EDF7;
+    background: transparent;
+    font-size: 10pt;
+    font-weight: 600;
+}
+
+QToolButton#TB_Minimize,
+QToolButton#TB_Maximize,
+QToolButton#TB_Close {
+    min-width: 42px;
+    max-width: 42px;
+    min-height: 32px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: #D6E0F0;
+    font-size: 14pt;
+}
+
+QToolButton#TB_Minimize:hover,
+QToolButton#TB_Maximize:hover {
+    background: #283349;
+    color: #FFFFFF;
+}
+
+QToolButton#TB_Close:hover {
+    background: #C83E52;
+    color: #FFFFFF;
+}
+
 QWidget#mainNavPanel {
     background: #111722;
     border: 1px solid #273244;
@@ -45,7 +82,6 @@ QLabel#LB_Title {
 }
 
 QPushButton {
-    min-height: 28px;
     padding: 5px 11px;
     border: 1px solid #344158;
     border-radius: 6px;

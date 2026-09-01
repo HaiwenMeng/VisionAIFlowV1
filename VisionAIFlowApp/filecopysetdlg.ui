@@ -90,19 +90,6 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QCheckBox" name="CB_RoiSet">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>裁切</string>
-        </property>
-       </widget>
-      </item>
       <item row="2" column="1">
        <widget class="QCheckBox" name="CB_PathRestv">
         <property name="sizePolicy">
@@ -153,15 +140,15 @@
     </widget>
    </item>
    <item row="0" column="1" rowspan="3">
-    <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowDisp"/>
+    <widget class="BaseAnnoDisplayWidget" name="baseAnnoDisplayWidget"/>
    </item>
   </layout>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>BaseAnnoLegacyCanvas</class>
+   <class>BaseAnnoDisplayWidget</class>
    <extends>QWidget</extends>
-   <header>baseannolegacycanvas.h</header>
+   <header>BaseAnnoDisplayWidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -1,10 +1,15 @@
 #include "maindlg.h"
 #include "taskrepository.h"
+#include "ytyolodefine.h"
 
 #include <QApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
+#include <QIODevice>
 #include <QMessageBox>
+#include <QScreen>
+#include <QStyle>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -33,6 +38,24 @@ int main(int argc, char *argv[])
     QDir::setCurrent(QCoreApplication::applicationDirPath());
     ConfigureModelSearchPath();
 
+    QFile styleSheetFile(QStringLiteral(":/styles/application-dark.qss"));
+    if (!styleSheetFile.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        const QString errorMessage = QString(u8"无法加载应用深色样式: %1").arg(styleSheetFile.errorString());
+        qCritical().noquote() << errorMessage;
+        QMessageBox::critical(nullptr, QString(u8"VisionAIFlow"), errorMessage);
+        return 1;
+    }
+    application.setStyleSheet(QString::fromUtf8(styleSheetFile.readAll()));
+
+    if (YtYoloDefine::toGetWorkPath().isEmpty())
+    {
+        const QString errorMessage = QString(u8"未选择有效工作目录，程序无法启动");
+        qCritical().noquote() << errorMessage;
+        QMessageBox::critical(nullptr, QString(u8"VisionAIFlow"), errorMessage);
+        return 1;
+    }
+
     QString errorMessage;
     if (!TaskRepository::Initialize(&errorMessage))
     {
@@ -42,7 +65,10 @@ int main(int argc, char *argv[])
     }
 
     MainDlg dialog;
-    dialog.resize(1280, 820);
+    const QRect availableGeometry = application.primaryScreen()->availableGeometry();
+    const QSize initialSize(qMin(1280, availableGeometry.width() * 9 / 10),
+                            qMin(760, availableGeometry.height() * 9 / 10));
+    dialog.setGeometry(QStyle::alignedRect(Qt::LeftToRight, Qt::AlignCenter, initialSize, availableGeometry));
     dialog.show();
     return application.exec();
 }

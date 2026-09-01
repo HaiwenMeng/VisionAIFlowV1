@@ -17,11 +17,26 @@
 #include <QTableWidgetItem>
 #include <QUrl>
 
+#include <array>
+
 namespace
 {
 constexpr int kNativeInputSize = 640;
 constexpr int kNativeChannels = 3;
 constexpr double kNativeLearningRate = 0.001;
+constexpr int kPluginPathRole = Qt::UserRole;
+constexpr int kPluginNameRole = Qt::UserRole + 1;
+constexpr int kPluginExportRole = Qt::UserRole + 2;
+
+QString ModelVariantForIndex(const int index)
+{
+    static const std::array<QString, 5> variants{QStringLiteral("yolov8n"),
+                                                 QStringLiteral("yolov8s"),
+                                                 QStringLiteral("yolov8m"),
+                                                 QStringLiteral("yolov8l"),
+                                                 QStringLiteral("yolov8x")};
+    return index >= 0 && index < static_cast<int>(variants.size()) ? variants.at(index) : QString();
+}
 } // namespace
 
 TrainDataForm::TrainDataForm(QWidget *parent)
@@ -49,15 +64,25 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     ui->CB_Imagechange->setCurrentText(QString::number(kNativeChannels));
     ui->CB_Imagechange->setEnabled(false);
     ui->PB_StopRun->setEnabled(false);
+    ui->PB_ModeCopy->setEnabled(false);
+    ui->PB_OnnxOut->setEnabled(false);
     InitChart();
 
+    connect(ui->LE_ModeList,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            this,
+            [this](const int)
+            {
+                UpdatePluginUiState();
+            });
+
     connect(m_trainingController,
-            &DetectTrainingController::Progress,
+            &DetectTrainingController::EpochProgress,
             this,
             [this](int epoch, int step, double loss, double boxLoss, double classLoss, int positives, double meanIou)
             {
-                ui->ChartWidget->toInsertData(0, step, static_cast<float>(meanIou));
-                ui->ChartWidget->toInsertData(1, step, static_cast<float>(loss));
+                ui->ChartWidget->toInsertData(0, epoch, static_cast<float>(meanIou));
+                ui->ChartWidget->toInsertData(1, epoch, static_cast<float>(loss));
                 AppendLog(QString(u8"轮次: %1, 步数: %2, 损失: %3, 框损失: %4, 分类损失: %5, 正样本: %6, IoU: %7")
                               .arg(epoch)
                               .arg(step)
@@ -67,17 +92,20 @@ TrainDataForm::TrainDataForm(QWidget *parent)
                               .arg(positives)
                               .arg(meanIou, 0, 'f', 6));
             });
-    connect(m_trainingController,
-            &DetectTrainingController::Completed,
-            this,
-            [this](const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath)
-            {
-                AppendLog(QString(u8"训练完成。输出目录: %1").arg(runDirectory));
-                AppendLog(QString(u8"ONNX: %1").arg(modelPath));
-                AppendLog(QString(u8"最佳检查点: %1").arg(bestCheckpointPath));
-                UpdateTaskProgress(QStringLiteral("trained"));
-                QMessageBox::information(this, QString(u8"训练完成"), QString(u8"Yolo11 原生训练已完成"));
-            });
+    connect(
+        m_trainingController,
+        &DetectTrainingController::Completed,
+        this,
+        [this](const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath)
+        {
+            m_lastModelPath = modelPath;
+            m_lastBestCheckpointPath = bestCheckpointPath;
+            AppendLog(QString(u8"训练完成。输出目录: %1").arg(runDirectory));
+            AppendLog(QString(u8"最新 checkpoint: %1").arg(modelPath));
+            AppendLog(QString(u8"最佳检查点: %1").arg(bestCheckpointPath));
+            UpdateTaskProgress(QStringLiteral("trained"));
+            QMessageBox::information(this, QString(u8"训练完成"), QString(u8"%1 训练已完成").arg(SelectedPluginName()));
+        });
     connect(m_trainingController,
             &DetectTrainingController::Failed,
             this,
@@ -106,11 +134,11 @@ TrainDataForm::~TrainDataForm()
 void TrainDataForm::toSetProcessName(const QString &setName)
 {
     m_ProcessName = setName;
-    ui->LE_CurentProName->setText(setName);
 }
 
 void TrainDataForm::toInitShow()
 {
+    RefreshPluginList();
     if (m_DataSetForm == nullptr)
     {
         AppendLog(QString(u8"训练页面缺少数据集页面实例"));
@@ -144,7 +172,7 @@ void TrainDataForm::toInitShow()
     ui->SB_ImSize->setValue(kNativeInputSize);
     ui->CB_Imagechange->setCurrentText(QString::number(kNativeChannels));
     ui->CB_ModeSize->setCurrentIndex(0);
-    AppendLog(QString(u8"检测训练使用 C++ Yolo11 n 插件。输入固定为 640，通道固定为 3，学习率固定为 0.001。"));
+    AppendLog(QString(u8"检测训练输入固定为 640，通道固定为 3，学习率固定为 0.001。"));
 }
 
 bool TrainDataForm::isrunstate() const
@@ -164,9 +192,16 @@ void TrainDataForm::on_PB_RunTrain_clicked()
         QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"当前训练页面仅支持 Detect 数据集"));
         return;
     }
-    if (ui->CB_ModeSize->currentIndex() != 0)
+    const QString pluginPath = SelectedPluginPath();
+    if (pluginPath.isEmpty())
     {
-        QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"当前原生插件仅支持 Yolo11 n 模型"));
+        QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"请选择有效的检测训练插件"));
+        return;
+    }
+    const QString modelVariant = ModelVariantForIndex(ui->CB_ModeSize->currentIndex());
+    if (modelVariant.isEmpty())
+    {
+        QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"当前模型规格不受 YOLOv8 训练插件支持"));
         return;
     }
 
@@ -178,24 +213,16 @@ void TrainDataForm::on_PB_RunTrain_clicked()
     }
 
     ui->ChartWidget->removeAllPoints();
-    ui->ChartWidget->toSetMaxVal(0, ui->SB_epoch->value());
+    ui->ChartWidget->toSetXAxis(1, ui->SB_epoch->value(), 1, 10, QString(u8"轮次"), 1);
     DetectTrainingRequest request;
     request.taskName = m_ProcessName;
+    request.pluginPath = pluginPath;
+    request.modelVariant = modelVariant;
     request.epochs = ui->SB_epoch->value();
     request.batchSize = ui->CB_BachSize->currentText().toInt();
     request.learningRate = kNativeLearningRate;
     request.horizontalFlip = false;
-    const QString checkpointPath =
-        QDir(YtYoloDefine::toGetTrainPath()).filePath(m_ProcessName + QStringLiteral("/YtPretrained.pt"));
-    if (QFileInfo::exists(checkpointPath))
-    {
-        request.resumeCheckpointPath = checkpointPath;
-        AppendLog(QString(u8"使用原生检查点继续训练: %1").arg(checkpointPath));
-    }
-    else
-    {
-        AppendLog(QString(u8"开始新的 Yolo11 n 原生训练"));
-    }
+    AppendLog(QString(u8"开始 %1 %2 训练").arg(SelectedPluginName(), modelVariant));
 
     UpdateTaskProgress(QStringLiteral("training"));
     m_trainingController->Start(request);
@@ -225,10 +252,12 @@ void TrainDataForm::on_PB_ViewPos_clicked()
 
 void TrainDataForm::on_PB_ModeCopy_clicked()
 {
-    const QString sourcePath = QDir(WeightsDirectory()).filePath(QStringLiteral("best.onnx"));
+    const QString sourcePath = m_lastBestCheckpointPath.isEmpty()
+                                   ? QDir(WeightsDirectory()).filePath(QStringLiteral("best.pt"))
+                                   : m_lastBestCheckpointPath;
     if (!QFileInfo::exists(sourcePath))
     {
-        QMessageBox::critical(this, QString(u8"复制失败"), QString(u8"未找到原生训练导出的 best.onnx"));
+        QMessageBox::critical(this, QString(u8"复制失败"), QString(u8"未找到 YOLOv8 训练导出的 best.pt"));
         return;
     }
     const QString destinationDirectory = QFileDialog::getExistingDirectory(this, QString(u8"选择模型导出目录"));
@@ -244,7 +273,9 @@ void TrainDataForm::on_PB_ModeCopy_clicked()
     }
     if (!QFile::copy(sourcePath, destinationPath))
     {
-        QMessageBox::critical(this, QString(u8"复制失败"), QString(u8"无法复制 ONNX 文件到: %1").arg(destinationPath));
+        QMessageBox::critical(this,
+                              QString(u8"复制失败"),
+                              QString(u8"无法复制 checkpoint 到: %1").arg(destinationPath));
         return;
     }
     QMessageBox::information(this, QString(u8"复制完成"), QString(u8"模型已复制到: %1").arg(destinationPath));
@@ -252,13 +283,7 @@ void TrainDataForm::on_PB_ModeCopy_clicked()
 
 void TrainDataForm::on_PB_OnnxOut_clicked()
 {
-    const QString modelPath = QDir(WeightsDirectory()).filePath(QStringLiteral("best.onnx"));
-    if (!QFileInfo::exists(modelPath))
-    {
-        QMessageBox::critical(this, QString(u8"导出失败"), QString(u8"未找到 best.onnx。请先完成原生训练。"));
-        return;
-    }
-    QMessageBox::information(this, QString(u8"ONNX 已生成"), modelPath);
+    ShowUnsupported(QString(u8"ONNX 导出"));
 }
 
 void TrainDataForm::on_PB_EigenCamTest_clicked()
@@ -302,15 +327,19 @@ void TrainDataForm::InitChart()
     ui->ChartWidget->toAddLineSerices(Qt::red, QStringLiteral("Loss"), 1);
     ui->ChartWidget->toInitChart(QString());
     ui->ChartWidget->toSetCrosshairVisible(true);
-    ui->ChartWidget->toSetXAxis(0, ui->SB_epoch->value(), 1, 10);
+    ui->ChartWidget->toSetXAxis(1, ui->SB_epoch->value(), 1, 10, QString(u8"轮次"));
     ui->ChartWidget->toSetYAxis(0, 1, 4, QStringLiteral("IoU"));
     ui->ChartWidget->toSetOtherAxis(0, 1, 4, QStringLiteral("Loss"));
 }
 
 void TrainDataForm::SetTrainingUiState(bool running)
 {
-    ui->PB_RunTrain->setEnabled(!running);
+    ui->LE_ModeList->setEnabled(!running);
+    ui->CB_ModeSize->setEnabled(!running);
+    ui->PB_RunTrain->setEnabled(!running && !SelectedPluginPath().isEmpty());
     ui->PB_StopRun->setEnabled(running);
+    ui->PB_ModeCopy->setEnabled(!running && QFileInfo::exists(m_lastBestCheckpointPath));
+    ui->PB_OnnxOut->setEnabled(false);
 }
 
 void TrainDataForm::AppendLog(const QString &message)
@@ -321,7 +350,7 @@ void TrainDataForm::AppendLog(const QString &message)
 
 void TrainDataForm::ShowUnsupported(const QString &featureName)
 {
-    const QString errorMessage = QString(u8"原生 Yolo11 训练暂未支持 %1").arg(featureName);
+    const QString errorMessage = QString(u8"当前训练插件暂未支持 %1").arg(featureName);
     AppendLog(errorMessage);
     QMessageBox::critical(this, QString(u8"功能未支持"), errorMessage);
 }
@@ -338,4 +367,60 @@ void TrainDataForm::UpdateTaskProgress(const QString &progress)
 QString TrainDataForm::WeightsDirectory() const
 {
     return QDir(YtYoloDefine::toGetTrainPath()).filePath(m_ProcessName + QStringLiteral("/detect/train/weights"));
+}
+
+void TrainDataForm::RefreshPluginList()
+{
+    if (m_trainingController->IsRunning())
+    {
+        return;
+    }
+
+    const QString selectedPath = SelectedPluginPath();
+    QStringList errorMessages;
+    const QVector<DetectionPluginDescriptor> plugins = m_trainingController->DiscoverPlugins(&errorMessages);
+    ui->LE_ModeList->clear();
+    for (const DetectionPluginDescriptor &plugin : plugins)
+    {
+        const QString displayName = plugin.version.isEmpty()
+                                        ? plugin.displayName
+                                        : QStringLiteral("%1 %2").arg(plugin.displayName, plugin.version);
+        ui->LE_ModeList->addItem(displayName, plugin.filePath);
+        const int itemIndex = ui->LE_ModeList->count() - 1;
+        ui->LE_ModeList->setItemData(itemIndex, plugin.filePath, kPluginPathRole);
+        ui->LE_ModeList->setItemData(itemIndex, plugin.displayName, kPluginNameRole);
+        ui->LE_ModeList->setItemData(itemIndex, plugin.supportsExport, kPluginExportRole);
+        if (plugin.filePath == selectedPath)
+        {
+            ui->LE_ModeList->setCurrentIndex(itemIndex);
+        }
+    }
+    for (const QString &errorMessage : errorMessages)
+    {
+        AppendLog(errorMessage);
+    }
+    if (plugins.isEmpty())
+    {
+        AppendLog(QString(u8"未发现可用的检测训练插件，训练按钮已禁用"));
+    }
+    UpdatePluginUiState();
+}
+
+void TrainDataForm::UpdatePluginUiState()
+{
+    const bool hasPlugin = !SelectedPluginPath().isEmpty();
+    ui->PB_RunTrain->setEnabled(hasPlugin && !m_trainingController->IsRunning());
+    ui->PB_OnnxOut->setEnabled(false);
+    ui->PB_OnnxOut->setToolTip(hasPlugin ? QString(u8"当前 YOLOv8 插件不支持 ONNX 导出")
+                                         : QString(u8"请先选择训练插件"));
+}
+
+QString TrainDataForm::SelectedPluginPath() const
+{
+    return ui->LE_ModeList->currentData(kPluginPathRole).toString();
+}
+
+QString TrainDataForm::SelectedPluginName() const
+{
+    return ui->LE_ModeList->currentData(kPluginNameRole).toString();
 }

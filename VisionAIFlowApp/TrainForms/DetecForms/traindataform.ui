@@ -69,79 +69,136 @@
       <property name="spacing">
        <number>3</number>
       </property>
-      <item row="10" column="0">
-       <widget class="QLabel" name="label_imgWidth_2">
-        <property name="text">
-         <string>线程数:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
+      <item row="10" column="1">
        <widget class="QCheckBox" name="CB_MultiScal">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="1" column="0" colspan="2">
-       <widget class="QTableWidget" name="TW_LabeSet">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>150</height>
-         </size>
+      <item row="8" column="1">
+       <widget class="QSpinBox" name="SB_ImSize">
+        <property name="minimum">
+         <number>32</number>
         </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>400</height>
-         </size>
+        <property name="maximum">
+         <number>20480</number>
         </property>
-        <column>
-         <property name="text">
-          <string>序号</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>名称</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>训练数量</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>测试数量</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>背景数量</string>
-         </property>
-        </column>
+        <property name="singleStep">
+         <number>32</number>
+        </property>
+        <property name="value">
+         <number>640</number>
+        </property>
        </widget>
       </item>
-      <item row="9" column="1">
+      <item row="14" column="0">
+       <widget class="QLabel" name="label_imgWidth_4">
+        <property name="text">
+         <string>数据增强:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="1">
        <widget class="QCheckBox" name="CB_Int8">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="label_ModelSize_2">
+      <item row="12" column="0">
+       <widget class="QLabel" name="label_imgWidth_2">
         <property name="text">
-         <string>多尺度</string>
+         <string>线程数:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
         </property>
        </widget>
       </item>
-      <item row="14" column="0" colspan="4">
+      <item row="3" column="0" colspan="2">
+       <widget class="QWidget" name="widget_2" native="true">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="spacing">
+          <number>3</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="PB_Batch0">
+           <property name="text">
+            <string>Batch0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="PB_Batch1">
+           <property name="text">
+            <string>Batch1</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="PB_Batch2">
+           <property name="text">
+            <string>Batch2</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="PB_Val0">
+           <property name="text">
+            <string>Val0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="PB_Val1">
+           <property name="text">
+            <string>Val1</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="label_ModelSize">
+        <property name="text">
+         <string>模型大小</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_epoch">
+        <property name="text">
+         <string>迭代轮数：</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0" colspan="4">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QPushButton" name="PB_ViewPos">
@@ -149,7 +206,7 @@
            <string>转到目录查看</string>
           </property>
           <property name="icon">
-           <iconset resource="YtSRes.qrc">
+           <iconset resource="../../YtSRes.qrc">
             <normaloff>:/ResourYolo/Selfbutton/转到目录.png</normaloff>:/ResourYolo/Selfbutton/转到目录.png</iconset>
           </property>
          </widget>
@@ -246,69 +303,6 @@
         </item>
        </layout>
       </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_epoch">
-        <property name="text">
-         <string>迭代轮数：</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2" rowspan="3" colspan="2">
-       <widget class="QTextBrowser" name="plainTextEdit_Log"/>
-      </item>
-      <item row="2" column="0" colspan="2">
-       <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowDisp"/>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>数据类型：</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QSpinBox" name="SB_ImSize">
-        <property name="minimum">
-         <number>32</number>
-        </property>
-        <property name="maximum">
-         <number>20480</number>
-        </property>
-        <property name="singleStep">
-         <number>32</number>
-        </property>
-        <property name="value">
-         <number>640</number>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0" colspan="4">
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <item>
-         <widget class="QLabel" name="LBShow">
-          <property name="text">
-           <string>当前项目</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="LE_CurentProName">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
       <item row="4" column="1">
        <widget class="QLineEdit" name="LE_ModeType">
         <property name="readOnly">
@@ -316,99 +310,7 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QSpinBox" name="SB_epoch">
-        <property name="minimum">
-         <number>10</number>
-        </property>
-        <property name="maximum">
-         <number>1000</number>
-        </property>
-        <property name="singleStep">
-         <number>4</number>
-        </property>
-        <property name="value">
-         <number>30</number>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label_ModelSize">
-        <property name="text">
-         <string>模型大小</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_imgWidth">
-        <property name="text">
-         <string>图片尺寸:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="QComboBox" name="CB_ModeSize">
-        <item>
-         <property name="text">
-          <string>n（最小模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>s（小模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>m（中等模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>l（较大模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>x（最大模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>n（最小灰度模型）</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>V5N</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>V6N</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>V8N</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>RtL</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>V12N</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="10" column="1">
+      <item row="12" column="1">
        <widget class="QComboBox" name="CB_Works">
         <item>
          <property name="text">
@@ -472,96 +374,14 @@
         </item>
        </widget>
       </item>
-      <item row="3" column="0" colspan="2">
-       <widget class="QWidget" name="widget_2" native="true">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>30</height>
-         </size>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QPushButton" name="PB_Batch0">
-           <property name="text">
-            <string>Batch0</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="PB_Batch1">
-           <property name="text">
-            <string>Batch1</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="PB_Batch2">
-           <property name="text">
-            <string>Batch2</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="PB_Val0">
-           <property name="text">
-            <string>Val0</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="PB_Val1">
-           <property name="text">
-            <string>Val1</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
       <item row="11" column="0">
-       <widget class="QLabel" name="label_imgWidth_3">
-        <property name="text">
-         <string>BatchSize:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
        <widget class="QLabel" name="label_ModelSize_3">
         <property name="text">
          <string>半精度</string>
         </property>
        </widget>
       </item>
-      <item row="12" column="0">
-       <widget class="QLabel" name="label_imgWidth_4">
-        <property name="text">
-         <string>数据增强:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="1">
+      <item row="13" column="1">
        <widget class="QComboBox" name="CB_BachSize">
         <item>
          <property name="text">
@@ -635,24 +455,127 @@
         </item>
        </widget>
       </item>
-      <item row="12" column="1">
+      <item row="9" column="1">
+       <widget class="QComboBox" name="CB_ModeSize">
+        <item>
+         <property name="text">
+          <string>n（最小模型）</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>s（小模型）</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>m（中等模型）</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>l（较大模型）</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>x（最大模型）</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="4" column="2" rowspan="12" colspan="2">
+       <widget class="YtChartView" name="ChartWidget" native="true"/>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QTableWidget" name="TW_LabeSet">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>150</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>400</height>
+         </size>
+        </property>
+        <column>
+         <property name="text">
+          <string>序号</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>名称</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>训练数量</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>测试数量</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>背景数量</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="label_ModelSize_2">
+        <property name="text">
+         <string>多尺度</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>数据类型：</string>
+        </property>
+       </widget>
+      </item>
+       <item row="6" column="1">
+       <widget class="QSpinBox" name="SB_epoch">
+        <property name="minimum">
+         <number>10</number>
+        </property>
+        <property name="maximum">
+         <number>1000</number>
+        </property>
+        <property name="singleStep">
+         <number>4</number>
+        </property>
+        <property name="value">
+         <number>30</number>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0">
+       <widget class="QLabel" name="label_imgWidth_5">
+        <property name="text">
+         <string>图象通道数:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+       <item row="14" column="1">
        <widget class="QCheckBox" name="CB_Mocisk">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
-      <item row="13" column="0">
-       <widget class="QLabel" name="label_imgWidth_5">
-        <property name="text">
-         <string>图象通道数:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="13" column="1">
+      <item row="15" column="1">
        <widget class="QComboBox" name="CB_Imagechange">
         <item>
          <property name="text">
@@ -666,29 +589,55 @@
         </item>
        </widget>
       </item>
-      <item row="4" column="2" rowspan="10" colspan="2">
-       <widget class="YtChartView" name="ChartWidget" native="true"/>
+      <item row="1" column="2" rowspan="3" colspan="2">
+       <widget class="QTextBrowser" name="plainTextEdit_Log"/>
+      </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="label_imgWidth">
+        <property name="text">
+         <string>图片尺寸:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="0">
+       <widget class="QLabel" name="label_imgWidth_3">
+        <property name="text">
+         <string>BatchSize:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QComboBox" name="LE_ModeList">
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>选择模型：</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>BaseAnnoLegacyCanvas</class>
-   <extends>QWidget</extends>
-   <header>baseannolegacycanvas.h</header>
-  </customwidget>
-  <customwidget>
-   <class>YtChartView</class>
+  <customwidgets>
+   <customwidget>
+    <class>YtChartView</class>
    <extends>QWidget</extends>
    <header>ytchartview.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="YtSRes.qrc"/>
+  <include location="../../YtSRes.qrc"/>
  </resources>
  <connections/>
 </ui>

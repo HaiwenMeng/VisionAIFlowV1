@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QDebug>
 #include <QFile>
 #include <QFont>
 #include <QIODevice>
@@ -14,8 +15,10 @@
 #include <dwmapi.h>
 #endif
 
-bool UiTheme::apply(QApplication* app) {
-    if (app == nullptr) {
+bool UiTheme::apply(QApplication *app)
+{
+    if (app == nullptr)
+    {
         return false;
     }
 
@@ -39,35 +42,51 @@ bool UiTheme::apply(QApplication* app) {
     app->setPalette(palette);
 
     QFile file(QStringLiteral(":/styles/dark.qss"));
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         return false;
     }
     app->setStyleSheet(QString::fromUtf8(file.readAll()));
     return true;
 }
 
-void UiTheme::applyDarkTitleBar(QWidget* widget) {
-    if (widget == nullptr) {
+void UiTheme::applyDarkTitleBar(QWidget *widget)
+{
+    if (widget == nullptr)
+    {
         return;
     }
 
 #ifdef Q_OS_WIN
     const HWND hwnd = reinterpret_cast<HWND>(widget->winId());
-    if (hwnd == nullptr) {
+    if (hwnd == nullptr)
+    {
         return;
     }
 
     const BOOL enabled = TRUE;
     constexpr DWORD dwmwaUseImmersiveDarkMode = 20;
     HRESULT hr = DwmSetWindowAttribute(hwnd, dwmwaUseImmersiveDarkMode, &enabled, sizeof(enabled));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         constexpr DWORD dwmwaUseImmersiveDarkModeBefore20H1 = 19;
-        DwmSetWindowAttribute(hwnd, dwmwaUseImmersiveDarkModeBefore20H1, &enabled, sizeof(enabled));
+        hr = DwmSetWindowAttribute(hwnd, dwmwaUseImmersiveDarkModeBefore20H1, &enabled, sizeof(enabled));
+    }
+    if (FAILED(hr))
+    {
+        qCritical().noquote()
+            << QString(u8"无法启用深色标题栏，错误码: 0x%1").arg(static_cast<quint32>(hr), 8, 16, QChar('0'));
+        return;
     }
 
-    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+    SetWindowPos(hwnd,
+                 nullptr,
+                 0,
+                 0,
+                 0,
+                 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    RedrawWindow(hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_FRAME);
+
 #else
     Q_UNUSED(widget);
 #endif
