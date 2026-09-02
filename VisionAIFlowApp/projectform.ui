@@ -13,9 +13,9 @@
   <property name="windowTitle">
    <string>项目管理</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout_2">
+  <layout class="QGridLayout" name="gridLayout_3">
    <item row="0" column="0">
-    <layout class="QGridLayout" name="gridLayout" rowstretch="0,10">
+    <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="0">
       <widget class="QLabel" name="LB_Title">
        <property name="styleSheet">
@@ -27,11 +27,8 @@
       </widget>
      </item>
      <item row="1" column="0">
-      <widget class="QSplitter" name="splitter">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <widget class="QWidget" name="TaskPanel">
+      <layout class="QGridLayout" name="gridLayout" columnstretch="2,0">
+       <item row="0" column="0">
         <layout class="QVBoxLayout" name="taskLayout">
          <item>
           <widget class="QTableWidget" name="TW_ListTask">
@@ -79,6 +76,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="PB_DleteProject">
+             <property name="text">
+              <string>删除项目</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="PB_ViewPos">
              <property name="text">
               <string>打开任务目录</string>
@@ -88,8 +92,8 @@
           </layout>
          </item>
         </layout>
-       </widget>
-       <widget class="QWidget" name="DetailPanel">
+       </item>
+       <item row="0" column="1">
         <layout class="QVBoxLayout" name="detailLayout">
          <item>
           <widget class="QLabel" name="LB_Labels">
@@ -150,8 +154,8 @@
           </widget>
          </item>
         </layout>
-       </widget>
-      </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

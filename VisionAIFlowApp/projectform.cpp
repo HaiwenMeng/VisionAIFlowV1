@@ -142,6 +142,36 @@ void ProJectForm::on_PB_ReName_clicked()
     Refresh();
 }
 
+void ProJectForm::on_PB_DleteProject_clicked()
+{
+    const QString taskName = CurrentTaskName();
+    if (taskName.isEmpty())
+    {
+        ReportError(QString(u8"请先选择项目"));
+        return;
+    }
+
+    const QMessageBox::StandardButton answer = QMessageBox::question(this,
+                                                                     QString(u8"删除项目"),
+                                                                     QString(u8"彻底删除[%1]项目数据").arg(taskName),
+                                                                     QMessageBox::Yes | QMessageBox::No,
+                                                                     QMessageBox::No);
+    if (answer != QMessageBox::Yes)
+    {
+        return;
+    }
+
+    QString errorMessage;
+    if (!TaskRepository::DeleteTask(taskName, &errorMessage))
+    {
+        ReportError(errorMessage);
+        return;
+    }
+    ui->TW_LabelSet->setRowCount(0);
+    ui->PTE_Description->clear();
+    Refresh();
+}
+
 void ProJectForm::on_PB_AddLabel_clicked()
 {
     const TaskDefinition currentTask = CurrentTask();

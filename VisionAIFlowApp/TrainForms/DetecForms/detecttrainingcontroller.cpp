@@ -84,6 +84,10 @@ void DetectTrainingController::Start(const DetectTrainingRequest &request)
         emit Failed(QString(u8"检测训练插件加载后为空"));
         return;
     }
+    if (plugin->pluginInfo().id == QStringLiteral("visionaiflow.detection.yolov11"))
+    {
+        config.pretrainedPath = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("Pretrained/yolo11n.pt"));
+    }
     if (!plugin->initializeTraining(config))
     {
         const QString errorMessage = plugin->errorMessage();
@@ -99,6 +103,8 @@ void DetectTrainingController::Start(const DetectTrainingRequest &request)
 
     m_outputDirectory = config.outputPath;
     m_lastReportedEpoch = 0;
+    m_totalEpochs = request.epochs;
+    m_elapsedTimer.restart();
     m_pollTimer->start();
     emit StateChanged(true);
 }
@@ -188,7 +194,11 @@ void DetectTrainingController::PollPluginState()
     {
         const QString bestCheckpointPath = progress.bestCheckpointPath;
         const QString modelPath = progress.modelPath;
-        emit Completed(m_outputDirectory, modelPath, bestCheckpointPath);
+        const double elapsedHours = static_cast<double>(m_elapsedTimer.elapsed()) / 3600000.0;
+        const QString durationMessage = QStringLiteral("[%1] epochs completed in [%2] hours.")
+                                           .arg(m_totalEpochs)
+                                           .arg(elapsedHours, 0, 'f', 3);
+        emit Completed(m_outputDirectory, modelPath, bestCheckpointPath, durationMessage);
     }
     emit StateChanged(false);
 }

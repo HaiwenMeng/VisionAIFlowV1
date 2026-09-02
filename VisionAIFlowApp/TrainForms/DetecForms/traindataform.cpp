@@ -27,9 +27,14 @@ constexpr double kNativeLearningRate = 0.001;
 constexpr int kPluginPathRole = Qt::UserRole;
 constexpr int kPluginNameRole = Qt::UserRole + 1;
 constexpr int kPluginExportRole = Qt::UserRole + 2;
+constexpr int kPluginIdRole = Qt::UserRole + 3;
 
-QString ModelVariantForIndex(const int index)
+QString ModelVariantForIndex(const QString &pluginId, const int index)
 {
+    if (pluginId == QStringLiteral("visionaiflow.detection.yolov11"))
+    {
+        return index == 0 ? QStringLiteral("yolo11n") : QString();
+    }
     static const std::array<QString, 5> variants{QStringLiteral("yolov8n"),
                                                  QStringLiteral("yolov8s"),
                                                  QStringLiteral("yolov8m"),
@@ -54,6 +59,8 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     ui->SB_ImSize->setValue(kNativeInputSize);
     ui->SB_ImSize->setEnabled(false);
     ui->CB_ModeSize->setCurrentIndex(0);
+    ui->CB_BachSize->setCurrentText(QStringLiteral("4"));
+    ui->SB_epoch->setValue(100);
     ui->CB_MultiScal->setChecked(false);
     ui->CB_MultiScal->setEnabled(false);
     ui->CB_Int8->setChecked(false);
@@ -96,13 +103,14 @@ TrainDataForm::TrainDataForm(QWidget *parent)
         m_trainingController,
         &DetectTrainingController::Completed,
         this,
-        [this](const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath)
+        [this](const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath, const QString &durationMessage)
         {
             m_lastModelPath = modelPath;
             m_lastBestCheckpointPath = bestCheckpointPath;
             AppendLog(QString(u8"训练完成。输出目录: %1").arg(runDirectory));
             AppendLog(QString(u8"最新 checkpoint: %1").arg(modelPath));
             AppendLog(QString(u8"最佳检查点: %1").arg(bestCheckpointPath));
+            AppendLog(durationMessage);
             UpdateTaskProgress(QStringLiteral("trained"));
             QMessageBox::information(this, QString(u8"训练完成"), QString(u8"%1 训练已完成").arg(SelectedPluginName()));
         });
@@ -198,10 +206,10 @@ void TrainDataForm::on_PB_RunTrain_clicked()
         QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"请选择有效的检测训练插件"));
         return;
     }
-    const QString modelVariant = ModelVariantForIndex(ui->CB_ModeSize->currentIndex());
+    const QString modelVariant = ModelVariantForIndex(SelectedPluginId(), ui->CB_ModeSize->currentIndex());
     if (modelVariant.isEmpty())
     {
-        QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"当前模型规格不受 YOLOv8 训练插件支持"));
+        QMessageBox::critical(this, QString(u8"训练失败"), QString(u8"当前模型规格不受所选训练插件支持"));
         return;
     }
 
@@ -390,6 +398,7 @@ void TrainDataForm::RefreshPluginList()
         ui->LE_ModeList->setItemData(itemIndex, plugin.filePath, kPluginPathRole);
         ui->LE_ModeList->setItemData(itemIndex, plugin.displayName, kPluginNameRole);
         ui->LE_ModeList->setItemData(itemIndex, plugin.supportsExport, kPluginExportRole);
+        ui->LE_ModeList->setItemData(itemIndex, plugin.id, kPluginIdRole);
         if (plugin.filePath == selectedPath)
         {
             ui->LE_ModeList->setCurrentIndex(itemIndex);
@@ -409,6 +418,12 @@ void TrainDataForm::RefreshPluginList()
 void TrainDataForm::UpdatePluginUiState()
 {
     const bool hasPlugin = !SelectedPluginPath().isEmpty();
+    const bool isYolo11 = SelectedPluginId() == QStringLiteral("visionaiflow.detection.yolov11");
+    if (isYolo11)
+    {
+        ui->CB_ModeSize->setCurrentIndex(0);
+    }
+    ui->CB_ModeSize->setEnabled(!isYolo11 && !m_trainingController->IsRunning());
     ui->PB_RunTrain->setEnabled(hasPlugin && !m_trainingController->IsRunning());
     ui->PB_OnnxOut->setEnabled(false);
     ui->PB_OnnxOut->setToolTip(hasPlugin ? QString(u8"当前 YOLOv8 插件不支持 ONNX 导出")
@@ -418,6 +433,11 @@ void TrainDataForm::UpdatePluginUiState()
 QString TrainDataForm::SelectedPluginPath() const
 {
     return ui->LE_ModeList->currentData(kPluginPathRole).toString();
+}
+
+QString TrainDataForm::SelectedPluginId() const
+{
+    return ui->LE_ModeList->currentData(kPluginIdRole).toString();
 }
 
 QString TrainDataForm::SelectedPluginName() const

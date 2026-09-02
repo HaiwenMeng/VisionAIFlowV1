@@ -100,7 +100,7 @@ QString TaskRepository::WorkPath()
 
 QString TaskRepository::LabelRoot()
 {
-    return QDir(g_workPath).filePath(QStringLiteral("LableSheet"));
+    return QDir(g_workPath).filePath(QStringLiteral("LabelSheet"));
 }
 
 QString TaskRepository::DataRoot()
@@ -266,6 +266,30 @@ bool TaskRepository::RenameTask(const QString &oldName, const QString &newName, 
         if (QFileInfo::exists(oldPath) && !QDir(root).rename(oldName, newName))
         {
             *errorMessage = QString(u8"无法重命名目录: %1").arg(oldPath);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool TaskRepository::DeleteTask(const QString &taskName, QString *errorMessage)
+{
+    if (!ValidateTaskName(taskName, errorMessage))
+    {
+        return false;
+    }
+
+    const QStringList roots{DataRoot(), TrainRoot(), ValidationRoot(), LabelRoot()};
+    for (const QString &root : roots)
+    {
+        const QString taskPath = QDir(root).filePath(taskName);
+        if (!QFileInfo::exists(taskPath))
+        {
+            continue;
+        }
+        if (!QDir(taskPath).removeRecursively())
+        {
+            *errorMessage = QString(u8"无法删除项目目录: %1").arg(taskPath);
             return false;
         }
     }

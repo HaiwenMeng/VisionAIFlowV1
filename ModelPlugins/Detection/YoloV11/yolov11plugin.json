@@ -1,0 +1,12 @@
+{
+    "plugin_id": "visionaiflow.detection.yolov11",
+    "display_name": "YOLO11",
+    "version": "1.0.0",
+    "task_type": "detection",
+    "supports_resume": false,
+    "supports_pretrained": true,
+    "supports_export": false,
+    "supports_backbone_export": false,
+    "supports_fp16": false,
+    "supports_multi_gpu": false
+}

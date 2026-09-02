@@ -3,7 +3,6 @@
 #include <QWidget>
 
 class QPushButton;
-class QMoveEvent;
 class QEvent;
 class QObject;
 
@@ -30,7 +29,6 @@ public:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
-    void moveEvent(QMoveEvent *event) override;
 
 private slots:
     void OnTaskSelected(const QString &taskName);
@@ -59,8 +57,4 @@ private:
     MainWindow *m_semiAutoAnnoForm = nullptr;
     SystemForm *m_systemForm;
     QString m_taskName;
-    QPoint m_titleBarDragStartPosition;
-    QRect m_titleBarDragStartGeometry;
-    bool m_isConstrainingPosition = false;
-    bool m_isTitleBarDragging = false;
 };

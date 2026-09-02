@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QElapsedTimer>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -51,7 +52,7 @@ public:
 signals:
     void
     EpochProgress(int epoch, int step, double loss, double boxLoss, double classLoss, int positives, double meanIou);
-    void Completed(const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath);
+    void Completed(const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath, const QString &durationMessage);
     void Failed(const QString &errorMessage);
     void Cancelled();
     void StateChanged(bool running);
@@ -61,6 +62,8 @@ private:
 
     std::unique_ptr<visionaiflow::plugin_api::PluginManager> m_pluginManager;
     QTimer *m_pollTimer{nullptr};
+    QElapsedTimer m_elapsedTimer;
     QString m_outputDirectory;
     int m_lastReportedEpoch{0};
+    int m_totalEpochs{0};
 };

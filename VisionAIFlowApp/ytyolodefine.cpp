@@ -2002,7 +2002,7 @@ void YtYoloDefine::toSetPythonPath(QString PythPath)
 
 QString YtYoloDefine::toGetLabelPath()
 {
-    return QString("%1/%2").arg(m_WorkPath).arg(u8"LableSheet");
+    return QString("%1/%2").arg(m_WorkPath).arg(u8"LabelSheet");
 }
 
 QString YtYoloDefine::toGetDataPath()

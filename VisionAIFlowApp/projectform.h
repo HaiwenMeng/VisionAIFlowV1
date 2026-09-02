@@ -27,6 +27,7 @@ signals:
 private slots:
     void on_PB_Add_clicked();
     void on_PB_ReName_clicked();
+    void on_PB_DleteProject_clicked();
     void on_PB_AddLabel_clicked();
     void on_PB_RemoveLabel_clicked();
     void on_PB_ViewPos_clicked();

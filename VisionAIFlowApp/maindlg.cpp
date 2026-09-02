@@ -12,16 +12,14 @@
 
 #include <QDebug>
 #include <QEvent>
-#include <QGuiApplication>
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
-#include <QMoveEvent>
 #include <QPushButton>
-#include <QScreen>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QToolButton>
+#include <QWindow>
 
 MainDlg::MainDlg(QWidget *parent)
     : QWidget(parent), ui(new Ui::MainDlg), m_projectForm(new ProJectForm(this)), m_dataSetForm(new DataSetForm(this)),
@@ -86,43 +84,12 @@ bool MainDlg::eventFilter(QObject *watched, QEvent *event)
         QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->button() == Qt::LeftButton)
         {
-            m_titleBarDragStartPosition = mouseEvent->globalPosition().toPoint();
-            m_titleBarDragStartGeometry = geometry();
-            m_isTitleBarDragging = true;
-            return true;
-        }
-    }
-    else if (event->type() == QEvent::MouseMove && m_isTitleBarDragging)
-    {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
-        const QPoint delta = mouseEvent->globalPosition().toPoint() - m_titleBarDragStartPosition;
-        if (isMaximized())
-        {
-            showNormal();
-            m_titleBarDragStartPosition = mouseEvent->globalPosition().toPoint();
-            m_titleBarDragStartGeometry = geometry();
-            return true;
-        }
-
-        if (qAbs(delta.y()) >= qAbs(delta.x()))
-        {
-            const int minimumTop = m_titleBarDragStartGeometry.bottom() - minimumHeight() + 1;
-            QRect resizedGeometry = m_titleBarDragStartGeometry;
-            resizedGeometry.setTop(qMin(m_titleBarDragStartGeometry.top() + delta.y(), minimumTop));
-            setGeometry(resizedGeometry);
-        }
-        else
-        {
-            move(m_titleBarDragStartGeometry.topLeft() + QPoint(delta.x(), 0));
-        }
-        return true;
-    }
-    else if (event->type() == QEvent::MouseButtonRelease && m_isTitleBarDragging)
-    {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
-        if (mouseEvent->button() == Qt::LeftButton)
-        {
-            m_isTitleBarDragging = false;
+            QWindow *window = windowHandle();
+            if (window == nullptr || !window->startSystemMove())
+            {
+                qCritical().noquote() << QString(u8"无法启动主窗口拖拽移动");
+                return false;
+            }
             return true;
         }
     }
@@ -145,46 +112,6 @@ bool MainDlg::eventFilter(QObject *watched, QEvent *event)
     }
 
     return QWidget::eventFilter(watched, event);
-}
-
-void MainDlg::moveEvent(QMoveEvent *event)
-{
-    QWidget::moveEvent(event);
-
-    if (m_isConstrainingPosition || isMaximized() || isMinimized())
-    {
-        return;
-    }
-
-    QScreen *screen = QGuiApplication::screenAt(frameGeometry().center());
-    if (screen == nullptr)
-    {
-        screen = QGuiApplication::primaryScreen();
-    }
-    if (screen == nullptr)
-    {
-        return;
-    }
-
-    const QRect availableGeometry = screen->availableGeometry();
-    const QRect windowFrame = frameGeometry();
-    if (windowFrame.width() > availableGeometry.width() || windowFrame.height() > availableGeometry.height())
-    {
-        return;
-    }
-
-    const int maxLeft = availableGeometry.right() - windowFrame.width() + 1;
-    const int maxTop = availableGeometry.bottom() - windowFrame.height() + 1;
-    const QPoint constrainedFrameTopLeft(qBound(availableGeometry.left(), windowFrame.left(), maxLeft),
-                                         qBound(availableGeometry.top(), windowFrame.top(), maxTop));
-    if (constrainedFrameTopLeft == windowFrame.topLeft())
-    {
-        return;
-    }
-
-    m_isConstrainingPosition = true;
-    move(pos() + constrainedFrameTopLeft - windowFrame.topLeft());
-    m_isConstrainingPosition = false;
 }
 
 void MainDlg::UpdateWindowControlButtons()

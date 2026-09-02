@@ -49,6 +49,7 @@ private:
     void UpdateTaskProgress(const QString &progress);
     QString WeightsDirectory() const;
     QString SelectedPluginPath() const;
+    QString SelectedPluginId() const;
     QString SelectedPluginName() const;
 
     Ui::TrainDataForm *ui;

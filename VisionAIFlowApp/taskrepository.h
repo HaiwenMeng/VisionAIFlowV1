@@ -32,6 +32,7 @@ public:
     static bool LoadTask(const QString &taskName, TaskDefinition *task, QString *errorMessage);
     static bool CreateTask(const TaskDefinition &task, QString *errorMessage);
     static bool RenameTask(const QString &oldName, const QString &newName, QString *errorMessage);
+    static bool DeleteTask(const QString &taskName, QString *errorMessage);
     static bool SaveTask(const TaskDefinition &task, QString *errorMessage);
     static bool UpdateProgress(const QString &taskName, const QString &progress, QString *errorMessage);
 
