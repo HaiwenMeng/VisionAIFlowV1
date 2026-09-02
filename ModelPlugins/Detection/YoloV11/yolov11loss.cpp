@@ -141,7 +141,10 @@ Yolo11LossResult Yolo11DetectionLoss::operator()(const std::vector<torch::Tensor
     const torch::Tensor insideGroundTruth = (anchorX - boxLeft).minimum(boxRight - anchorX).minimum(anchorY - boxTop).minimum(boxBottom - anchorY).gt(1e-9);
 
     const torch::Tensor gtLabelsForScore = groundTruthLabels.squeeze(-1).unsqueeze(1).expand({batchSize, anchors, maximumTargets});
-    const torch::Tensor classScores = predictionScores.gather(2, gtLabelsForScore).permute({0, 2, 1});
+    // const torch::Tensor classScores = predictionScores.gather(2, gtLabelsForScore).permute({0, 2, 1});
+    const torch::Tensor assignScores = predictionScores .detach() .sigmoid();
+    const torch::Tensor classScores = assignScores .gather(2, gtLabelsForScore) .permute({0, 2, 1});
+
     const torch::Tensor overlaps = BboxIou(predictedBoxes.unsqueeze(1).expand({batchSize, maximumTargets, anchors, 4}),
                                            groundTruthBoxes.unsqueeze(2).expand({batchSize, maximumTargets, anchors, 4}))
                                        .clamp_min(0);
@@ -151,10 +154,58 @@ Yolo11LossResult Yolo11DetectionLoss::operator()(const std::vector<torch::Tensor
     const torch::Tensor topkIndexes = std::get<1>(alignMetric.topk(topk, -1, true, true));
     torch::Tensor topkMask = torch::zeros_like(alignMetric, options.dtype(torch::kBool));
     topkMask.scatter_(-1, topkIndexes, true);
-    const torch::Tensor positiveMask = topkMask & insideGroundTruth & groundTruthMask;
+    // const torch::Tensor positiveMask = topkMask & insideGroundTruth & groundTruthMask;
+    // const torch::Tensor overlapsMasked = overlaps * positiveMask.to(options.dtype());
+    // const torch::Tensor targetGroundTruthIndex = std::get<1>(overlapsMasked.max(1));
+    // const torch::Tensor foregroundMask = std::get<0>(overlapsMasked.max(1)).gt(0);
+
+    torch::Tensor positiveMask = topkMask & insideGroundTruth & groundTruthMask;
+
+    // ---------------------------------------------------------
+    // Resolve anchors assigned to multiple GTs.
+    // Equivalent to Ultralytics select_highest_overlaps().
+    // positiveMask: [B, GT, A]
+    // ---------------------------------------------------------
+
+    // 每个 anchor 被多少个 GT 选中
+    // [B, GT, A] -> [B, A]
+    torch::Tensor foregroundCount = positiveMask.to(torch::kInt64).sum(1);
+
+    // 找出同时属于多个 GT 的 anchor
+    // [B, A]
+    const torch::Tensor multiGroundTruthMask = foregroundCount.gt(1);
+
+    if (multiGroundTruthMask.any().item<bool>())
+    {
+        // 对每个 anchor，找 IoU 最大的 GT
+        // overlaps: [B, GT, A]
+        // -> [B, A]
+        const torch::Tensor maxOverlapGroundTruthIndex = std::get<1>(overlaps.max(1));
+
+               // 生成 one-hot mask：
+               // 对每个 anchor 只保留 IoU 最大的那个 GT
+               // [B, GT, A]
+        torch::Tensor maxOverlapMask = torch::zeros_like(positiveMask);
+
+        maxOverlapMask.scatter_(1, maxOverlapGroundTruthIndex.unsqueeze(1), true);
+
+               // multi-GT anchor: 替换成 maxOverlapMask
+               // 普通 anchor: 保持原 positiveMask
+        positiveMask = torch::where( multiGroundTruthMask.unsqueeze(1), maxOverlapMask, positiveMask);
+    }
+
+    // ---------------------------------------------------------
+    // 使用更新后的 positiveMask 生成 assignment
+    // ---------------------------------------------------------
+    // [B, A]
+    // 冲突解决之后，每个正样本 anchor 只属于一个 GT
+    const torch::Tensor foregroundMask = positiveMask.to(torch::kInt64) .sum(1) .gt(0);
+    // [B, A]
+    // 每个 anchor 对应哪个 GT
+    const torch::Tensor targetGroundTruthIndex = positiveMask.to(torch::kInt64) .argmax(1);
+    // 后续 TAL normalization 也必须使用更新后的 positiveMask
     const torch::Tensor overlapsMasked = overlaps * positiveMask.to(options.dtype());
-    const torch::Tensor targetGroundTruthIndex = std::get<1>(overlapsMasked.max(1));
-    const torch::Tensor foregroundMask = std::get<0>(overlapsMasked.max(1)).gt(0);
+
 
     const torch::Tensor flattenedOffset = torch::arange(batchSize, options.dtype(torch::kLong)).view({batchSize, 1}) * maximumTargets;
     const torch::Tensor flattenedIndex = (targetGroundTruthIndex + flattenedOffset).view({-1});
@@ -164,11 +215,21 @@ Yolo11LossResult Yolo11DetectionLoss::operator()(const std::vector<torch::Tensor
     targetScores.scatter_(2, targetLabels.unsqueeze(-1), 1.0);
     targetScores = targetScores * foregroundMask.unsqueeze(-1).to(options.dtype());
 
+    // alignMetric = alignMetric * positiveMask.to(options.dtype());
+    // const torch::Tensor normalizedMetric = (alignMetric.amax(-1, true) * overlapsMasked.amax(-1, true) /
+    //                                         (alignMetric.amax(-1, true) + 1e-9));
+    // const torch::Tensor matchedMetric = normalizedMetric.gather(1, targetGroundTruthIndex);
+    // targetScores = targetScores * matchedMetric.unsqueeze(-1);
+
     alignMetric = alignMetric * positiveMask.to(options.dtype());
-    const torch::Tensor normalizedMetric = (alignMetric.amax(-1, true) * overlapsMasked.amax(-1, true) /
-                                            (alignMetric.amax(-1, true) + 1e-9));
-    const torch::Tensor matchedMetric = normalizedMetric.gather(1, targetGroundTruthIndex);
-    targetScores = targetScores * matchedMetric.unsqueeze(-1);
+    const torch::Tensor positiveOverlaps = overlaps * positiveMask.to(options.dtype());
+    const torch::Tensor posAlignMetrics = alignMetric.amax(-1, true);
+    const torch::Tensor posOverlaps = positiveOverlaps.amax(-1, true);
+    alignMetric = alignMetric * posOverlaps / (posAlignMetrics + 1e-9);
+    const torch::Tensor normalizedMetric = alignMetric.amax(1).unsqueeze(-1);
+    targetScores = targetScores * normalizedMetric;
+
+
     const torch::Tensor targetScoresSum = targetScores.sum().clamp_min(1.0);
     torch::Tensor classificationLoss = torch::nn::functional::binary_cross_entropy_with_logits(
         predictionScores, targetScores, torch::nn::functional::BinaryCrossEntropyWithLogitsFuncOptions().reduction(torch::kSum));
