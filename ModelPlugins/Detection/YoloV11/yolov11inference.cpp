@@ -187,18 +187,12 @@ bool Yolo11Inference::loadModel(const plugin_api::DetectionInferConfig &config, 
         *errorMessage = QString(u8"YOLO11 推理输入尺寸必须为正数且能被 32 整除");
         return false;
     }
-    torch::Device device(torch::kCPU);
-    if (!InitializeYolo11CudaDevice(config.gpuId, &device, errorMessage))
-    {
-        return false;
-    }
     try
     {
-        m_device = device;
         torch::jit::ExtraFilesMap extraFiles;
         extraFiles["visionaiflow_yolo11.json"] = "";
-        m_model = torch::jit::load(config.modelPath.toStdString(), m_device, extraFiles);
-        m_model.eval();
+        const torch::Device cpuDevice(torch::kCPU);
+        torch::jit::script::Module model = torch::jit::load(config.modelPath.toStdString(), cpuDevice, extraFiles);
         const QJsonDocument metadata = QJsonDocument::fromJson(QByteArray::fromStdString(extraFiles["visionaiflow_yolo11.json"]));
         if (!metadata.isObject())
         {
@@ -215,6 +209,29 @@ bool Yolo11Inference::loadModel(const plugin_api::DetectionInferConfig &config, 
             *errorMessage = QString(u8"YOLO11 权重不是兼容的 Ultralytics 8.3.4 YOLO11n 转换文件");
             return false;
         }
+        const QString executionDevice = object.value(QStringLiteral("execution_device")).toString(QStringLiteral("cpu"));
+        if (executionDevice == QStringLiteral("cuda"))
+        {
+            torch::Device device(torch::kCPU);
+            if (!InitializeYolo11CudaDevice(config.gpuId, &device, errorMessage))
+            {
+                return false;
+            }
+            extraFiles["visionaiflow_yolo11.json"] = "";
+            model = torch::jit::load(config.modelPath.toStdString(), device, extraFiles);
+            m_device = device;
+        }
+        else if (executionDevice == QStringLiteral("cpu"))
+        {
+            m_device = torch::Device(torch::kCPU);
+        }
+        else
+        {
+            *errorMessage = QString(u8"YOLO11 权重包含不支持的执行设备标记: %1").arg(executionDevice);
+            return false;
+        }
+        model.eval();
+        m_model = std::move(model);
         const QJsonObject names = object.value(QStringLiteral("names")).toObject();
         m_classNames.clear();
         for (int index = 0; index < object.value(QStringLiteral("nc")).toInt(); ++index)
@@ -233,6 +250,11 @@ bool Yolo11Inference::loadModel(const plugin_api::DetectionInferConfig &config, 
         return true;
     }
     catch (const c10::Error &error)
+    {
+        *errorMessage = QString(u8"加载 YOLO11 转换权重失败: %1").arg(QString::fromLocal8Bit(error.what()));
+        return false;
+    }
+    catch (const std::exception &error)
     {
         *errorMessage = QString(u8"加载 YOLO11 转换权重失败: %1").arg(QString::fromLocal8Bit(error.what()));
         return false;
@@ -290,6 +312,11 @@ bool Yolo11Inference::infer(const plugin_api::DetectionInferRequest &request, pl
                 continue;
             }
             const int classId = std::get<1>(best).item<int>();
+            if (classId < 0 || classId >= m_classNames.size())
+            {
+                *errorMessage = QString(u8"YOLO11 推理输出类别索引越界: %1, 类别数: %2").arg(classId).arg(m_classNames.size());
+                return false;
+            }
             const double centerX = item[0].item<double>();
             const double centerY = item[1].item<double>();
             const double width = item[2].item<double>();
@@ -332,6 +359,11 @@ bool Yolo11Inference::infer(const plugin_api::DetectionInferRequest &request, pl
         return true;
     }
     catch (const c10::Error &error)
+    {
+        *errorMessage = QString(u8"YOLO11 推理执行失败: %1").arg(QString::fromLocal8Bit(error.what()));
+        return false;
+    }
+    catch (const std::exception &error)
     {
         *errorMessage = QString(u8"YOLO11 推理执行失败: %1").arg(QString::fromLocal8Bit(error.what()));
         return false;

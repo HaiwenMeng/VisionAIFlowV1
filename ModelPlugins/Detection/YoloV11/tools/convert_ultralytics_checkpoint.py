@@ -33,6 +33,8 @@ def main():
         fail("需要本地 ultralytics %s, 当前版本为 %s" % (EXPECTED_VERSION, ultralytics.__version__))
     if not os.path.isfile(args.input):
         fail("找不到输入权重: %s" % args.input)
+    if not torch.cuda.is_available():
+        fail("转换 YOLO11n 权重需要可用的 CUDA GPU")
 
     checkpoint = torch.load(args.input, map_location="cpu")
     if not isinstance(checkpoint, dict):
@@ -51,8 +53,9 @@ def main():
     if len(state) != EXPECTED_STATE_ITEMS:
         fail("YOLO11n 参数项数量不匹配: %d" % len(state))
 
-    model_object = model_object.float().eval()
-    example = torch.zeros(1, 3, 640, 640, dtype=torch.float32)
+    device = torch.device("cuda:0")
+    model_object = model_object.float().to(device).eval()
+    example = torch.zeros(1, 3, 640, 640, dtype=torch.float32, device=device)
     traced = torch.jit.trace(model_object, example, strict=False, check_trace=False)
     metadata = {
         "format": "VisionAIFlow.YoloV11.TorchScript.1",
@@ -63,6 +66,7 @@ def main():
         "names": getattr(model_object, "names", {}),
         "state_dict_items": len(state),
         "source_type": "ultralytics_checkpoint",
+        "execution_device": "cuda",
     }
 
     output_dir = os.path.dirname(os.path.abspath(args.output))

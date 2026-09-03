@@ -70,6 +70,33 @@ torch::Tensor BboxIou(const torch::Tensor &box1, const torch::Tensor &box2)
     return iou - centerDistance / convexDiagonal - alpha * v;
 }
 
+torch::Tensor BboxPlainIou( const torch::Tensor &box1, const torch::Tensor &box2)
+{
+    const torch::Tensor intersectionWidth =
+        (torch::min(box1.select(-1, 2), box2.select(-1, 2)) -
+         torch::max(box1.select(-1, 0), box2.select(-1, 0)))
+            .clamp_min(0);
+
+    const torch::Tensor intersectionHeight =
+        (torch::min(box1.select(-1, 3), box2.select(-1, 3)) -
+         torch::max(box1.select(-1, 1), box2.select(-1, 1)))
+            .clamp_min(0);
+
+    const torch::Tensor intersection =
+        intersectionWidth * intersectionHeight;
+
+    const torch::Tensor area1 =
+        (box1.select(-1, 2) - box1.select(-1, 0)) *
+        (box1.select(-1, 3) - box1.select(-1, 1));
+
+    const torch::Tensor area2 =
+        (box2.select(-1, 2) - box2.select(-1, 0)) *
+        (box2.select(-1, 3) - box2.select(-1, 1));
+
+    return intersection /
+           (area1 + area2 - intersection + 1e-7);
+}
+
 torch::Tensor DistributionFocalLoss(const torch::Tensor &prediction, const torch::Tensor &target)
 {
     const torch::Tensor left = target.floor().to(torch::kLong);
@@ -237,26 +264,92 @@ Yolo11LossResult Yolo11DetectionLoss::operator()(const std::vector<torch::Tensor
 
     torch::Tensor boxLoss = torch::zeros({}, options);
     torch::Tensor dflLoss = torch::zeros({}, options);
-    const torch::Tensor foregroundIndexes = foregroundMask.nonzero();
+
+    // 默认没有正样本时 IoU = 0
+    double meanIou = 0.0;
+
+    const torch::Tensor foregroundIndexes =
+        foregroundMask.nonzero();
+
     if (foregroundIndexes.numel() > 0)
     {
-        const torch::Tensor batchIndexes = foregroundIndexes.select(1, 0);
-        const torch::Tensor anchorIndexes = foregroundIndexes.select(1, 1);
-        const torch::Tensor weight = targetScores.sum(-1).index({batchIndexes, anchorIndexes}).unsqueeze(-1);
-        const torch::Tensor ciou = BboxIou(predictedBoxesForLoss.index({batchIndexes, anchorIndexes}),
-                                           targetBoxes.index({batchIndexes, anchorIndexes}));
-        boxLoss = ((1.0 - ciou).unsqueeze(-1) * weight).sum() / targetScoresSum;
-        const torch::Tensor targetDistance = Bbox2Dist(anchorPoints.index_select(0, anchorIndexes),
-                                                        targetBoxes.index({batchIndexes, anchorIndexes}) / strideTensor.index_select(0, anchorIndexes),
-                                                        m_regMax - 1);
-        const torch::Tensor distributionForForeground = distribution.index({batchIndexes, anchorIndexes});
-        dflLoss = (DistributionFocalLoss(distributionForForeground.view({-1, m_regMax}), targetDistance.view({-1, 4})) * weight).sum() /
-                  targetScoresSum;
+        const torch::Tensor batchIndexes =
+            foregroundIndexes.select(1, 0);
+
+        const torch::Tensor anchorIndexes =
+            foregroundIndexes.select(1, 1);
+
+        const torch::Tensor weight =
+            targetScores.sum(-1)
+                .index({batchIndexes, anchorIndexes})
+                .unsqueeze(-1);
+
+               // ----------------------------------------------------
+               // 取出所有正样本的预测框和目标框
+               // ----------------------------------------------------
+
+        const torch::Tensor predFg =
+            predictedBoxesForLoss.index(
+                {batchIndexes, anchorIndexes});
+
+        const torch::Tensor targetFg =
+            targetBoxes.index(
+                {batchIndexes, anchorIndexes});
+
+               // ----------------------------------------------------
+               // CIoU：用于真正参与训练的 box loss
+               // ----------------------------------------------------
+
+        const torch::Tensor ciou =
+            BboxIou(predFg, targetFg);
+
+        boxLoss =
+            ((1.0 - ciou).unsqueeze(-1) * weight).sum()
+            / targetScoresSum;
+
+               // ----------------------------------------------------
+               // 普通 IoU：仅用于 UI / 日志显示
+               // 不参与梯度计算
+               // ----------------------------------------------------
+
+        meanIou =
+            BboxPlainIou(
+                predFg.detach(),
+                targetFg.detach())
+                .mean()
+                .item<double>();
+
+               // ----------------------------------------------------
+               // DFL
+               // ----------------------------------------------------
+
+        const torch::Tensor targetDistance =
+            Bbox2Dist(
+                anchorPoints.index_select(0, anchorIndexes),
+                targetFg /
+                    strideTensor.index_select(
+                        0, anchorIndexes),
+                m_regMax - 1);
+
+        const torch::Tensor distributionForForeground =
+            distribution.index(
+                {batchIndexes, anchorIndexes});
+
+        dflLoss =
+            (DistributionFocalLoss(
+                 distributionForForeground.view(
+                     {-1, m_regMax}),
+                 targetDistance.view({-1, 4})) *
+             weight)
+                .sum() /
+            targetScoresSum;
     }
 
     const torch::Tensor items = torch::stack({boxLoss.detach(), classificationLoss.detach(), dflLoss.detach()});
     return {(boxLoss * m_boxGain + classificationLoss * m_classGain + dflLoss * m_dflGain) * batchSize,
             items,
-            foregroundIndexes.size(0)};
+            foregroundIndexes.size(0), meanIou};
 }
+
+
 } // namespace visionaiflow::yolov11

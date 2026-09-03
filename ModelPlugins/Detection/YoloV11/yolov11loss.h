@@ -11,6 +11,7 @@ struct Yolo11LossResult
     torch::Tensor total;
     torch::Tensor items;
     int64_t positiveAnchorCount{0};
+    double meanIou{0.0};
 };
 
 class Yolo11DetectionLoss final

@@ -357,6 +357,7 @@ TrainRunResult Yolo11Trainer::train(std::atomic_bool &stopRequested, const Progr
                 progress.classLoss = loss.items[1].item<double>();
                 progress.dflLoss = loss.items[2].item<double>();
                 progress.positiveCount = static_cast<int>(loss.positiveAnchorCount);
+                progress.meanIou = loss.meanIou;
                 progress.modelPath = lastPath;
                 progress.bestCheckpointPath = bestPath;
                 onProgress(progress);
