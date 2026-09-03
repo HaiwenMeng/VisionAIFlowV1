@@ -70,6 +70,7 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     ui->CB_Works->setEnabled(false);
     ui->CB_Imagechange->setCurrentText(QString::number(kNativeChannels));
     ui->CB_Imagechange->setEnabled(false);
+    ui->spinBox_batchsz->setValue(1);
     ui->PB_StopRun->setEnabled(false);
     ui->PB_ModeCopy->setEnabled(false);
     ui->PB_OnnxOut->setEnabled(false);
@@ -103,7 +104,10 @@ TrainDataForm::TrainDataForm(QWidget *parent)
         m_trainingController,
         &DetectTrainingController::Completed,
         this,
-        [this](const QString &runDirectory, const QString &modelPath, const QString &bestCheckpointPath, const QString &durationMessage)
+        [this](const QString &runDirectory,
+               const QString &modelPath,
+               const QString &bestCheckpointPath,
+               const QString &durationMessage)
         {
             m_lastModelPath = modelPath;
             m_lastBestCheckpointPath = bestCheckpointPath;
@@ -301,7 +305,55 @@ void TrainDataForm::on_PB_EigenCamTest_clicked()
 
 void TrainDataForm::on_PB_OnnxMatch_clicked()
 {
-    ShowUnsupported(QString(u8"ONNX 匹配测试"));
+    if (m_trainingController->IsRunning())
+    {
+        QMessageBox::critical(this, QString(u8"导出失败"), QString(u8"训练任务正在运行"));
+        return;
+    }
+    if (!ui->LE_ModeList->currentData(kPluginExportRole).toBool())
+    {
+        QMessageBox::critical(this, QString(u8"导出失败"), QString(u8"当前检测训练插件不支持 ONNX 导出"));
+        return;
+    }
+
+    const QString checkpointPath = m_lastBestCheckpointPath.isEmpty()
+                                       ? QDir(WeightsDirectory()).filePath(QStringLiteral("best.pt"))
+                                       : m_lastBestCheckpointPath;
+    if (!QFileInfo::exists(checkpointPath))
+    {
+        QMessageBox::critical(this,
+                              QString(u8"导出失败"),
+                              QString(u8"未找到 YOLO11 训练导出的 best.pt: %1").arg(checkpointPath));
+        return;
+    }
+
+    const int batchSize = ui->spinBox_batchsz->value();
+    const QString outputPath = QDir(WeightsDirectory()).filePath(QStringLiteral("best_batch_%1.onnx").arg(batchSize));
+    DetectModelExportRequest request;
+    request.pluginPath = SelectedPluginPath();
+    request.checkpointPath = checkpointPath;
+    request.outputPath = outputPath;
+    request.imageWidth = kNativeInputSize;
+    request.imageHeight = kNativeInputSize;
+    request.batchSize = batchSize;
+    request.metadata.insert(QStringLiteral("author"), QStringLiteral("YtVision/MHW"));
+    request.metadata.insert(QStringLiteral("license"), QStringLiteral("AGPL-3.0 License"));
+    request.metadata.insert(
+        QStringLiteral("description"),
+        QStringLiteral("Modified YOLO11n model trained on [%1]")
+            .arg(QDir(YtYoloDefine::toGetDataPath()).filePath(m_ProcessName + QStringLiteral("/Config.yaml"))));
+    request.metadata.insert(QStringLiteral("version"), QStringLiteral("yolov11n v2.0"));
+    request.metadata.insert(QStringLiteral("docs"), QStringLiteral("none"));
+
+    QString errorMessage;
+    if (!m_trainingController->ExportModel(request, &errorMessage))
+    {
+        AppendLog(QString(u8"ONNX 导出失败: %1").arg(errorMessage));
+        QMessageBox::critical(this, QString(u8"导出失败"), errorMessage);
+        return;
+    }
+    AppendLog(QString(u8"YOLO11 ONNX 导出完成: %1, batch: %2").arg(outputPath).arg(batchSize));
+    QMessageBox::information(this, QString(u8"导出完成"), QString(u8"YOLO11 ONNX 已导出到: %1").arg(outputPath));
 }
 
 void TrainDataForm::on_PB_Batch0_clicked()
@@ -348,6 +400,8 @@ void TrainDataForm::SetTrainingUiState(bool running)
     ui->PB_StopRun->setEnabled(running);
     ui->PB_ModeCopy->setEnabled(!running && QFileInfo::exists(m_lastBestCheckpointPath));
     ui->PB_OnnxOut->setEnabled(false);
+    ui->spinBox_batchsz->setEnabled(!running);
+    ui->PB_OnnxMatch->setEnabled(!running && ui->LE_ModeList->currentData(kPluginExportRole).toBool());
 }
 
 void TrainDataForm::AppendLog(const QString &message)
@@ -428,6 +482,11 @@ void TrainDataForm::UpdatePluginUiState()
     ui->PB_OnnxOut->setEnabled(false);
     ui->PB_OnnxOut->setToolTip(hasPlugin ? QString(u8"当前 YOLOv8 插件不支持 ONNX 导出")
                                          : QString(u8"请先选择训练插件"));
+    const bool supportsExport = ui->LE_ModeList->currentData(kPluginExportRole).toBool();
+    ui->spinBox_batchsz->setEnabled(!m_trainingController->IsRunning());
+    ui->PB_OnnxMatch->setEnabled(hasPlugin && supportsExport && !m_trainingController->IsRunning());
+    ui->PB_OnnxMatch->setToolTip(supportsExport ? QString(u8"导出当前 best.pt 的指定 batch ONNX 模型")
+                                                : QString(u8"当前检测训练插件不支持 ONNX 导出"));
 }
 
 QString TrainDataForm::SelectedPluginPath() const

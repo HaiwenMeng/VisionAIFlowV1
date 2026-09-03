@@ -160,6 +160,8 @@ struct ModelExportConfig final
     QString format;
     int imageWidth{0};
     int imageHeight{0};
+    int batchSize{1};
+    QVariantMap metadata;
 };
 
 struct BackboneExportConfig final

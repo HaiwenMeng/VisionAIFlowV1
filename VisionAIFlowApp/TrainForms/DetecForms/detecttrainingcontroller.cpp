@@ -10,6 +10,7 @@
 #include <QTimer>
 
 using visionaiflow::plugin_api::DetectionTrainConfig;
+using visionaiflow::plugin_api::ModelExportConfig;
 using visionaiflow::plugin_api::PluginManager;
 using visionaiflow::plugin_api::TrainState;
 
@@ -86,7 +87,8 @@ void DetectTrainingController::Start(const DetectTrainingRequest &request)
     }
     if (plugin->pluginInfo().id == QStringLiteral("visionaiflow.detection.yolov11"))
     {
-        config.pretrainedPath = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("Pretrained/yolo11n.pt"));
+        config.pretrainedPath =
+            QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("Pretrained/yolo11n.pt"));
     }
     if (!plugin->initializeTraining(config))
     {
@@ -152,6 +154,52 @@ bool DetectTrainingController::IsRunning() const noexcept
     return pluginState == TrainState::Running || pluginState == TrainState::Stopping;
 }
 
+bool DetectTrainingController::ExportModel(const DetectModelExportRequest &request, QString *errorMessage)
+{
+    if (errorMessage == nullptr)
+    {
+        return false;
+    }
+    if (IsRunning())
+    {
+        *errorMessage = QString(u8"训练任务正在运行");
+        return false;
+    }
+    if (request.pluginPath.isEmpty() || !QFileInfo::exists(request.pluginPath) || request.checkpointPath.isEmpty() ||
+        !QFileInfo::exists(request.checkpointPath) || request.outputPath.isEmpty() || request.imageWidth <= 0 ||
+        request.imageHeight <= 0 || request.batchSize <= 0)
+    {
+        *errorMessage = QString(u8"ONNX 导出参数无效");
+        return false;
+    }
+    if (!m_pluginManager->loadDetectionPlugin(request.pluginPath))
+    {
+        *errorMessage = m_pluginManager->errorMessage();
+        return false;
+    }
+    auto *plugin = m_pluginManager->detectionPlugin();
+    if (plugin == nullptr || !plugin->capabilities().supportsExport)
+    {
+        *errorMessage = QString(u8"当前检测训练插件不支持 ONNX 导出");
+        return false;
+    }
+
+    ModelExportConfig config;
+    config.checkpointPath = request.checkpointPath;
+    config.outputPath = request.outputPath;
+    config.format = QStringLiteral("onnx");
+    config.imageWidth = request.imageWidth;
+    config.imageHeight = request.imageHeight;
+    config.batchSize = request.batchSize;
+    config.metadata = request.metadata;
+    if (!plugin->exportModel(config))
+    {
+        *errorMessage = plugin->errorMessage();
+        return false;
+    }
+    return true;
+}
+
 void DetectTrainingController::PollPluginState()
 {
     auto *plugin = m_pluginManager->detectionPlugin();
@@ -195,9 +243,8 @@ void DetectTrainingController::PollPluginState()
         const QString bestCheckpointPath = progress.bestCheckpointPath;
         const QString modelPath = progress.modelPath;
         const double elapsedHours = static_cast<double>(m_elapsedTimer.elapsed()) / 3600000.0;
-        const QString durationMessage = QStringLiteral("[%1] epochs completed in [%2] hours.")
-                                           .arg(m_totalEpochs)
-                                           .arg(elapsedHours, 0, 'f', 3);
+        const QString durationMessage =
+            QStringLiteral("[%1] epochs completed in [%2] hours.").arg(m_totalEpochs).arg(elapsedHours, 0, 'f', 3);
         emit Completed(m_outputDirectory, modelPath, bestCheckpointPath, durationMessage);
     }
     emit StateChanged(false);

@@ -226,42 +226,21 @@
          </widget>
         </item>
         <item>
+         <widget class="QSpinBox" name="spinBox_batchsz">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+         <property name="maximum">
+          <number>128</number>
+         </property>
+         <property name="value">
+          <number>1</number>
+         </property>
+        </widget>
+        </item>
+        <item>
          <layout class="QGridLayout" name="gridLayout_3">
           <item row="0" column="0">
-           <widget class="QComboBox" name="comboBox">
-            <item>
-             <property name="text">
-              <string>batch=1</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>batch=4</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>batch=8</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>batch=16</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>batch=32</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>batch=64</string>
-             </property>
-            </item>
-           </widget>
-          </item>
-          <item row="0" column="1">
            <widget class="QCheckBox" name="checkBox_isTrt">
             <property name="text">
              <string>导出trt</string>
@@ -542,7 +521,7 @@
         </property>
        </widget>
       </item>
-       <item row="6" column="1">
+      <item row="6" column="1">
        <widget class="QSpinBox" name="SB_epoch">
         <property name="minimum">
          <number>10</number>
@@ -554,7 +533,7 @@
          <number>4</number>
         </property>
         <property name="value">
-          <number>100</number>
+         <number>100</number>
         </property>
        </widget>
       </item>
@@ -568,7 +547,7 @@
         </property>
        </widget>
       </item>
-       <item row="14" column="1">
+      <item row="14" column="1">
        <widget class="QCheckBox" name="CB_Mocisk">
         <property name="text">
          <string/>
@@ -613,8 +592,7 @@
        </widget>
       </item>
       <item row="5" column="1">
-       <widget class="QComboBox" name="LE_ModeList">
-       </widget>
+       <widget class="QComboBox" name="LE_ModeList"/>
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="label_5">
@@ -628,9 +606,9 @@
    </item>
   </layout>
  </widget>
-  <customwidgets>
-   <customwidget>
-    <class>YtChartView</class>
+ <customwidgets>
+  <customwidget>
+   <class>YtChartView</class>
    <extends>QWidget</extends>
    <header>ytchartview.h</header>
    <container>1</container>

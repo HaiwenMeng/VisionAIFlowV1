@@ -13,7 +13,11 @@ namespace visionaiflow::yolov11
 class ConvImpl final : public torch::nn::Module
 {
 public:
-    ConvImpl(int64_t inputChannels, int64_t outputChannels, int64_t kernelSize = 1, int64_t stride = 1, int64_t groups = 1,
+    ConvImpl(int64_t inputChannels,
+             int64_t outputChannels,
+             int64_t kernelSize = 1,
+             int64_t stride = 1,
+             int64_t groups = 1,
              bool activation = true);
 
     torch::Tensor forward(const torch::Tensor &input);
@@ -29,8 +33,12 @@ TORCH_MODULE(Conv);
 class BottleneckImpl final : public torch::nn::Module
 {
 public:
-    BottleneckImpl(int64_t inputChannels, int64_t outputChannels, bool shortcut = true, int64_t groups = 1,
-                   std::pair<int64_t, int64_t> kernels = {3, 3}, double expansion = 0.5);
+    BottleneckImpl(int64_t inputChannels,
+                   int64_t outputChannels,
+                   bool shortcut = true,
+                   int64_t groups = 1,
+                   std::pair<int64_t, int64_t> kernels = {3, 3},
+                   double expansion = 0.5);
 
     torch::Tensor forward(const torch::Tensor &input);
 
@@ -44,8 +52,13 @@ TORCH_MODULE(Bottleneck);
 class C3kImpl final : public torch::nn::Module
 {
 public:
-    C3kImpl(int64_t inputChannels, int64_t outputChannels, int64_t repeats = 1, bool shortcut = true, int64_t groups = 1,
-            int64_t kernelSize = 3, double expansion = 0.5);
+    C3kImpl(int64_t inputChannels,
+            int64_t outputChannels,
+            int64_t repeats = 1,
+            bool shortcut = true,
+            int64_t groups = 1,
+            int64_t kernelSize = 3,
+            double expansion = 0.5);
 
     torch::Tensor forward(const torch::Tensor &input);
 
@@ -60,7 +73,12 @@ TORCH_MODULE(C3k);
 class C3k2Impl final : public torch::nn::Module
 {
 public:
-    C3k2Impl(int64_t inputChannels, int64_t outputChannels, int64_t repeats, bool c3k, bool shortcut = false, int64_t groups = 1,
+    C3k2Impl(int64_t inputChannels,
+             int64_t outputChannels,
+             int64_t repeats,
+             bool c3k,
+             bool shortcut = false,
+             int64_t groups = 1,
              double expansion = 0.5);
 
     torch::Tensor forward(const torch::Tensor &input);
@@ -153,6 +171,7 @@ public:
     DetectBoxBranchImpl(int64_t inputChannels, int64_t boxChannels, int64_t outputChannels);
 
     torch::Tensor forward(const torch::Tensor &input);
+    void initializeBias(double value);
 
 private:
     Conv m_first{nullptr};
@@ -167,6 +186,7 @@ public:
     DetectClassBranchImpl(int64_t inputChannels, int64_t classChannels, int64_t classCount);
 
     torch::Tensor forward(const torch::Tensor &input);
+    void initializeBias(double value);
 
 private:
     torch::nn::Sequential m_first{nullptr};
