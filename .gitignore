@@ -1,6 +1,27 @@
 # Build and IDE output
 /out/
 /build/
+/.gitnexus/
+/BINX64/
+/BuildLib/
+Makefile*
+release/
+debug/
+*.obj
+*.moc
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.exp
+*.dll
+*.exe
+*.lib
+*.so
+*.a
+*.dylib
+/BaseLibX64/V4depends/*/bin/
+/BaseLibX64/V4depends/*/lib/
 /.qtc_clangd/
 *.pro.user
 /.vaf_checkpoint_*/
@@ -22,6 +43,27 @@
 *.pdparams
 *.ckpt
 *.zip
+*.Debug
+*.Release
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+
+# Binary resources and generated UI assets
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.ico
+*.ttf
+*.qm
+/VisionAIFlowApp/ResourYolo/Selfbutton/
+
+# YoloV11 local build output
+/ModelPlugins/Detection/YoloV11/Makefile*
+/ModelPlugins/Detection/YoloV11/release/
 
 # User data and model packages
 /data/
