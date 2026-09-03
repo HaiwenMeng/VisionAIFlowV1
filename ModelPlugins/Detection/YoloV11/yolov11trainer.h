@@ -27,5 +27,6 @@ public:
 private:
     plugin_api::DetectionTrainConfig m_config;
     QString m_modelVariant;
+    QString m_validationDatasetPath;
 };
 } // namespace visionaiflow::yolov11

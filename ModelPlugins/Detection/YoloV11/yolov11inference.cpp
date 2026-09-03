@@ -527,19 +527,30 @@ bool Yolo11Inference::infer(const plugin_api::DetectionInferRequest &request,
             const double centerY = item[1].item<double>();
             const double width = item[2].item<double>();
             const double height = item[3].item<double>();
+            const double left = std::clamp((centerX - width / 2.0 - transform.paddingX) / transform.scale,
+                                           0.0,
+                                           static_cast<double>(transform.originalWidth));
+            const double top = std::clamp((centerY - height / 2.0 - transform.paddingY) / transform.scale,
+                                          0.0,
+                                          static_cast<double>(transform.originalHeight));
+            const double right = std::clamp((centerX + width / 2.0 - transform.paddingX) / transform.scale,
+                                            0.0,
+                                            static_cast<double>(transform.originalWidth));
+            const double bottom = std::clamp((centerY + height / 2.0 - transform.paddingY) / transform.scale,
+                                             0.0,
+                                             static_cast<double>(transform.originalHeight));
+            if (right <= left || bottom <= top)
+            {
+                continue;
+            }
+
             Candidate candidate;
             candidate.classId = classId;
             candidate.confidence = confidence;
-            candidate.x = (centerX - width / 2.0 - transform.paddingX) / transform.scale;
-            candidate.y = (centerY - height / 2.0 - transform.paddingY) / transform.scale;
-            candidate.width = width / transform.scale;
-            candidate.height = height / transform.scale;
-            candidate.x = std::clamp(candidate.x, 0.0, static_cast<double>(transform.originalWidth));
-            candidate.y = std::clamp(candidate.y, 0.0, static_cast<double>(transform.originalHeight));
-            candidate.width =
-                std::clamp(candidate.width, 0.0, static_cast<double>(transform.originalWidth) - candidate.x);
-            candidate.height =
-                std::clamp(candidate.height, 0.0, static_cast<double>(transform.originalHeight) - candidate.y);
+            candidate.x = left;
+            candidate.y = top;
+            candidate.width = right - left;
+            candidate.height = bottom - top;
             candidates.append(candidate);
         }
 

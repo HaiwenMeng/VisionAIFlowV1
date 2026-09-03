@@ -65,7 +65,7 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     ui->CB_MultiScal->setEnabled(false);
     ui->CB_Int8->setChecked(false);
     ui->CB_Int8->setEnabled(false);
-    ui->CB_Mocisk->setChecked(false);
+    ui->CB_Mocisk->setChecked(true);
     ui->CB_Mocisk->setEnabled(false);
     ui->CB_Works->setEnabled(false);
     ui->CB_Imagechange->setCurrentText(QString::number(kNativeChannels));
@@ -233,7 +233,8 @@ void TrainDataForm::on_PB_RunTrain_clicked()
     request.epochs = ui->SB_epoch->value();
     request.batchSize = ui->CB_BachSize->currentText().toInt();
     request.learningRate = kNativeLearningRate;
-    request.horizontalFlip = false;
+    request.horizontalFlip = true;
+    request.mosaic = ui->CB_Mocisk->isChecked();
     AppendLog(QString(u8"开始 %1 %2 训练").arg(SelectedPluginName(), modelVariant));
 
     UpdateTaskProgress(QStringLiteral("training"));
@@ -396,6 +397,7 @@ void TrainDataForm::SetTrainingUiState(bool running)
 {
     ui->LE_ModeList->setEnabled(!running);
     ui->CB_ModeSize->setEnabled(!running);
+    ui->CB_Mocisk->setEnabled(!running && SelectedPluginId() == QStringLiteral("visionaiflow.detection.yolov11"));
     ui->PB_RunTrain->setEnabled(!running && !SelectedPluginPath().isEmpty());
     ui->PB_StopRun->setEnabled(running);
     ui->PB_ModeCopy->setEnabled(!running && QFileInfo::exists(m_lastBestCheckpointPath));
@@ -478,6 +480,7 @@ void TrainDataForm::UpdatePluginUiState()
         ui->CB_ModeSize->setCurrentIndex(0);
     }
     ui->CB_ModeSize->setEnabled(!isYolo11 && !m_trainingController->IsRunning());
+    ui->CB_Mocisk->setEnabled(isYolo11 && !m_trainingController->IsRunning());
     ui->PB_RunTrain->setEnabled(hasPlugin && !m_trainingController->IsRunning());
     ui->PB_OnnxOut->setEnabled(false);
     ui->PB_OnnxOut->setToolTip(hasPlugin ? QString(u8"当前 YOLOv8 插件不支持 ONNX 导出")

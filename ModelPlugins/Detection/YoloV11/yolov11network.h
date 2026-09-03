@@ -77,7 +77,7 @@ public:
              int64_t outputChannels,
              int64_t repeats,
              bool c3k,
-             bool shortcut = false,
+             bool shortcut = true,
              int64_t groups = 1,
              double expansion = 0.5);
 

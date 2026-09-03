@@ -1,4 +1,5 @@
 #include "yolov11plugin.h"
+#include "yolov11onnxconverter.h"
 
 #include <QDebug>
 #include <QDateTime>
@@ -172,14 +173,12 @@ torch::Tensor DecodeYolo11ExportOutput(const std::vector<torch::Tensor> &outputs
     const torch::Tensor values = torch::cat(flattened, 2);
     const torch::Tensor box = values.slice(1, 0, kRegMax * 4);
     const torch::Tensor scores = values.slice(1, kRegMax * 4);
-    const torch::Tensor anchorPoints =
-        torch::from_blob(anchorValues.data(), {anchorCount, 2}, torch::TensorOptions().dtype(torch::kFloat32))
-            .clone()
-            .transpose(0, 1)
-            .unsqueeze(0);
+    const torch::Tensor anchorPoints = torch::tensor(anchorValues, torch::TensorOptions().dtype(torch::kFloat32))
+                                           .view({anchorCount, 2})
+                                           .transpose(0, 1)
+                                           .unsqueeze(0);
     const torch::Tensor strides =
-        torch::from_blob(strideValues.data(), {1, 1, anchorCount}, torch::TensorOptions().dtype(torch::kFloat32))
-            .clone();
+        torch::tensor(strideValues, torch::TensorOptions().dtype(torch::kFloat32)).view({1, 1, anchorCount});
     const torch::Tensor projection =
         torch::arange(kRegMax, torch::TensorOptions().dtype(torch::kFloat32)).view({1, kRegMax, 1, 1});
     const torch::Tensor distance =
@@ -226,13 +225,11 @@ bool ExportYolo11Onnx(const plugin_api::ModelExportConfig &config, QString *erro
             parameter.value().set_requires_grad(false);
         }
 
-        std::map<std::string, torch::Tensor> initializers;
         std::unordered_map<const c10::TensorImpl *, std::string> tensorNames;
-        const auto addNamedTensors = [&initializers, &tensorNames](const auto &tensors)
+        const auto addNamedTensors = [&tensorNames](const auto &tensors)
         {
             for (const auto &tensor : tensors)
             {
-                initializers.emplace(tensor.key(), tensor.value());
                 tensorNames.emplace(tensor.value().unsafeGetTensorImpl(), tensor.key());
             }
         };
@@ -264,6 +261,11 @@ bool ExportYolo11Onnx(const plugin_api::ModelExportConfig &config, QString *erro
             true,
             nullptr,
             {"images"});
+        if (!ConvertYolo11TraceToOnnx(trace.first->graph, errorMessage))
+        {
+            return false;
+        }
+        const std::map<std::string, torch::Tensor> initializers;
         const auto exported = torch::jit::export_onnx(trace.first->graph,
                                                       initializers,
                                                       12,

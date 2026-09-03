@@ -89,6 +89,22 @@ void DetectTrainingController::Start(const DetectTrainingRequest &request)
     {
         config.pretrainedPath =
             QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("Pretrained/yolo11n.pt"));
+        config.algorithmOptions.insert(QStringLiteral("plots"), true);
+        config.algorithmOptions.insert(QStringLiteral("mosaic"), request.mosaic ? 1.0 : 0.0);
+        config.algorithmOptions.insert(QStringLiteral("close_mosaic"), 0);
+        config.algorithmOptions.insert(QStringLiteral("mixup"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("copy_paste"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("hsv_h"), 0.015);
+        config.algorithmOptions.insert(QStringLiteral("hsv_s"), 0.7);
+        config.algorithmOptions.insert(QStringLiteral("hsv_v"), 0.4);
+        config.algorithmOptions.insert(QStringLiteral("degrees"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("translate"), 0.1);
+        config.algorithmOptions.insert(QStringLiteral("scale"), 0.5);
+        config.algorithmOptions.insert(QStringLiteral("shear"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("perspective"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("flipud"), 0.0);
+        config.algorithmOptions.insert(QStringLiteral("fliplr"), request.horizontalFlip ? 0.5 : 0.0);
+        config.algorithmOptions.insert(QStringLiteral("seed"), 0);
     }
     if (!plugin->initializeTraining(config))
     {

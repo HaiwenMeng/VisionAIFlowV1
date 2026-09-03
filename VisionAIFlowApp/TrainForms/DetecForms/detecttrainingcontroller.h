@@ -25,6 +25,7 @@ struct DetectTrainingRequest
     int batchSize{0};
     double learningRate{0.0};
     bool horizontalFlip{true};
+    bool mosaic{true};
     QString resumeCheckpointPath;
 };
 

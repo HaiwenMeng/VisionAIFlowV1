@@ -177,7 +177,8 @@ torch::Tensor AttentionImpl::forward(const torch::Tensor &input)
     const torch::Tensor attention = torch::matmul(query.transpose(-2, -1), key) * m_scale;
     const torch::Tensor weighted = torch::matmul(value, attention.softmax(-1).transpose(-2, -1));
     const torch::Tensor output = weighted.view({batch, channels, height, width});
-    return m_proj->forward(output + m_pe->forward(output));
+    const torch::Tensor positionalEncoding = m_pe->forward(value.reshape({batch, channels, height, width}));
+    return m_proj->forward(output + positionalEncoding);
 }
 
 PSABlockImpl::PSABlockImpl(const int64_t channels, const double attentionRatio, const int64_t heads, const bool add)
@@ -319,27 +320,27 @@ Yolo11NetworkImpl::Yolo11NetworkImpl(const int64_t classCount) : m_classCount(cl
     m_model = register_module("model", torch::nn::ModuleList());
     m_model->push_back(Conv(3, 16, 3, 2));
     m_model->push_back(Conv(16, 32, 3, 2));
-    m_model->push_back(C3k2(32, 64, 1, false, false, 1, 0.25));
+    m_model->push_back(C3k2(32, 64, 1, false, true, 1, 0.25));
     m_model->push_back(Conv(64, 64, 3, 2));
-    m_model->push_back(C3k2(64, 128, 1, false, false, 1, 0.25));
+    m_model->push_back(C3k2(64, 128, 1, false, true, 1, 0.25));
     m_model->push_back(Conv(128, 128, 3, 2));
-    m_model->push_back(C3k2(128, 128, 1, true, false, 1, 0.5));
+    m_model->push_back(C3k2(128, 128, 1, true, true, 1, 0.5));
     m_model->push_back(Conv(128, 256, 3, 2));
-    m_model->push_back(C3k2(256, 256, 1, true, false, 1, 0.5));
+    m_model->push_back(C3k2(256, 256, 1, true, true, 1, 0.5));
     m_model->push_back(SPPF(256, 256, 5));
     m_model->push_back(C2PSA(256, 256, 1, 0.5));
     m_model->push_back(torch::nn::Identity());
     m_model->push_back(torch::nn::Identity());
-    m_model->push_back(C3k2(384, 128, 1, false, false, 1, 0.5));
+    m_model->push_back(C3k2(384, 128, 1, false, true, 1, 0.5));
     m_model->push_back(torch::nn::Identity());
     m_model->push_back(torch::nn::Identity());
-    m_model->push_back(C3k2(256, 64, 1, false, false, 1, 0.5));
+    m_model->push_back(C3k2(256, 64, 1, false, true, 1, 0.5));
     m_model->push_back(Conv(64, 64, 3, 2));
     m_model->push_back(torch::nn::Identity());
-    m_model->push_back(C3k2(192, 128, 1, false, false, 1, 0.5));
+    m_model->push_back(C3k2(192, 128, 1, false, true, 1, 0.5));
     m_model->push_back(Conv(128, 128, 3, 2));
     m_model->push_back(torch::nn::Identity());
-    m_model->push_back(C3k2(384, 256, 1, true, false, 1, 0.5));
+    m_model->push_back(C3k2(384, 256, 1, true, true, 1, 0.5));
     m_model->push_back(Detect(classCount, std::vector<int64_t>{64, 128, 256}));
 }
 

@@ -23,11 +23,13 @@ SOURCES += yolov11network.cpp \
            yolov11loss.cpp \
            yolov11trainer.cpp \
            yolov11inference.cpp \
+           yolov11onnxconverter.cpp \
            yolov11plugin.cpp
 HEADERS += yolov11network.h \
            yolov11loss.h \
            yolov11trainer.h \
            yolov11inference.h \
+           yolov11onnxconverter.h \
            yolov11plugin.h
 DISTFILES += yolov11plugin.json \
              tools/convert_ultralytics_checkpoint.py
