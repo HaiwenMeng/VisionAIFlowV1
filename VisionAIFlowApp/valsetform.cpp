@@ -44,6 +44,20 @@ void ValSetForm::setYoloEMode(bool enabled)
     ui->LB_YoloeReference->setVisible(enabled);
     ui->LE_YoloeReference->setVisible(enabled);
     ui->PB_SelectYoloeReference->setVisible(enabled);
+    if (enabled)
+    {
+        ui->doubleSpinBox->setDecimals(3);
+        ui->doubleSpinBox->setMinimum(0.001);
+        ui->doubleSpinBox->setSingleStep(0.001);
+        ui->doubleSpinBox->setValue(0.01);
+    }
+    else
+    {
+        ui->doubleSpinBox->setDecimals(2);
+        ui->doubleSpinBox->setMinimum(0.0);
+        ui->doubleSpinBox->setSingleStep(0.01);
+        ui->doubleSpinBox->setValue(0.5);
+    }
 }
 
 void ValSetForm::toInitShow()
@@ -787,7 +801,12 @@ bool ValSetForm::runYoloeInference()
                 this,
                 [this]()
                 {
-                    AppendLog(QString::fromUtf8(m_yoloeProcess->readAllStandardOutput()).trimmed());
+                    const QString output = QString::fromUtf8(m_yoloeProcess->readAllStandardOutput()).trimmed();
+                    if (output.contains(QStringLiteral("YOLOE_NO_DETECTION")))
+                    {
+                        m_yoloeNoDetection = true;
+                    }
+                    AppendLog(output);
                 });
         connect(m_yoloeProcess,
                 qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
@@ -808,10 +827,12 @@ bool ValSetForm::runYoloeInference()
                     m_OverPlayShow.toClearData();
                     ui->ytRoiShowDisp->toSetImage(result);
                     ui->ytRoiShowDisp->toUpdateShow();
-                    AppendLog(QString(u8"YOLOE分割推理完成"));
+                    AppendLog(m_yoloeNoDetection ? QString(u8"YOLOE推理完成, 未检出满足阈值的目标")
+                                                 : QString(u8"YOLOE分割推理完成"));
                 });
     }
     QStringList arguments;
+    m_yoloeNoDetection = false;
     arguments << script << QStringLiteral("--model") << modelPath << QStringLiteral("--reference-image")
               << referenceImage << QStringLiteral("--reference-label") << QDir::cleanPath(referenceLabel)
               << QStringLiteral("--query-image") << ui->listWidget->currentItem()->text() << QStringLiteral("--output")

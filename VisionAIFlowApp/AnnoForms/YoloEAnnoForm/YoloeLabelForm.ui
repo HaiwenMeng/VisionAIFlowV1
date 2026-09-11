@@ -34,7 +34,7 @@
         <string notr="true">font: 18pt &quot;微软雅黑&quot;;</string>
        </property>
        <property name="text">
-        <string>辅助标注</string>
+        <string>YoloE辅助标注</string>
        </property>
       </widget>
      </item>
@@ -76,7 +76,7 @@
             <string>增加</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/增加.png</normaloff>:/ResourYolo/Selfbutton/增加.png</iconset>
            </property>
           </widget>
@@ -87,7 +87,7 @@
             <string>移除</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/减少.png</normaloff>:/ResourYolo/Selfbutton/减少.png</iconset>
            </property>
           </widget>
@@ -248,7 +248,7 @@
                 <string>自动</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/自动.png</normaloff>:/ResourYolo/Selfbutton/自动.png</iconset>
                </property>
               </item>
@@ -257,7 +257,7 @@
                 <string>手动</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/手动.png</normaloff>:/ResourYolo/Selfbutton/手动.png</iconset>
                </property>
               </item>
@@ -289,7 +289,7 @@
                 <string>正矩形</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/矩形.png</normaloff>:/ResourYolo/Selfbutton/矩形.png</iconset>
                </property>
               </item>
@@ -298,7 +298,7 @@
                 <string>点</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/点.png</normaloff>:/ResourYolo/Selfbutton/点.png</iconset>
                </property>
               </item>
@@ -330,7 +330,7 @@
                 <string>自动</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/自动.png</normaloff>:/ResourYolo/Selfbutton/自动.png</iconset>
                </property>
               </item>
@@ -339,7 +339,7 @@
                 <string>手动</string>
                </property>
                <property name="icon">
-                <iconset resource="YtSRes.qrc">
+                <iconset resource="../../YtSRes.qrc">
                  <normaloff>:/ResourYolo/Selfbutton/手动.png</normaloff>:/ResourYolo/Selfbutton/手动.png</iconset>
                </property>
               </item>
@@ -373,7 +373,7 @@
              <string>最末张</string>
             </property>
             <property name="icon">
-             <iconset resource="YtSRes.qrc">
+             <iconset resource="../../YtSRes.qrc">
               <normaloff>:/ResourYolo/Selfbutton/最后一张.png</normaloff>:/ResourYolo/Selfbutton/最后一张.png</iconset>
             </property>
            </widget>
@@ -384,7 +384,7 @@
              <string>上一张 [A]</string>
             </property>
             <property name="icon">
-             <iconset resource="YtSRes.qrc">
+             <iconset resource="../../YtSRes.qrc">
               <normaloff>:/ResourYolo/Selfbutton/上一张.png</normaloff>:/ResourYolo/Selfbutton/上一张.png</iconset>
             </property>
             <property name="autoRepeat">
@@ -408,7 +408,7 @@
              <string>下一张 [D]</string>
             </property>
             <property name="icon">
-             <iconset resource="YtSRes.qrc">
+             <iconset resource="../../YtSRes.qrc">
               <normaloff>:/ResourYolo/Selfbutton/下一张.png</normaloff>:/ResourYolo/Selfbutton/下一张.png</iconset>
             </property>
             <property name="autoRepeat">
@@ -422,7 +422,7 @@
              <string>第一张</string>
             </property>
             <property name="icon">
-             <iconset resource="YtSRes.qrc">
+             <iconset resource="../../YtSRes.qrc">
               <normaloff>:/ResourYolo/Selfbutton/第一张.png</normaloff>:/ResourYolo/Selfbutton/第一张.png</iconset>
             </property>
            </widget>
@@ -444,7 +444,7 @@
             <string>增加</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/增加.png</normaloff>:/ResourYolo/Selfbutton/增加.png</iconset>
            </property>
           </widget>
@@ -455,7 +455,7 @@
             <string>重载</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/重载.png</normaloff>:/ResourYolo/Selfbutton/重载.png</iconset>
            </property>
           </widget>
@@ -473,7 +473,7 @@
             <string>清空</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/清空.png</normaloff>:/ResourYolo/Selfbutton/清空.png</iconset>
            </property>
           </widget>
@@ -484,7 +484,7 @@
             <string>保存</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/保存.png</normaloff>:/ResourYolo/Selfbutton/保存.png</iconset>
            </property>
           </widget>
@@ -495,7 +495,7 @@
             <string>移除</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/移除.png</normaloff>:/ResourYolo/Selfbutton/移除.png</iconset>
            </property>
           </widget>
@@ -506,7 +506,7 @@
             <string>移除</string>
            </property>
            <property name="icon">
-            <iconset resource="YtSRes.qrc">
+            <iconset resource="../../YtSRes.qrc">
              <normaloff>:/ResourYolo/Selfbutton/减少.png</normaloff>:/ResourYolo/Selfbutton/减少.png</iconset>
            </property>
           </widget>
@@ -581,7 +581,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="YtSRes.qrc"/>
+  <include location="../../YtSRes.qrc"/>
  </resources>
  <connections/>
 </ui>

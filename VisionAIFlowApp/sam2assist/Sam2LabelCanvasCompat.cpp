@@ -10,8 +10,6 @@
 
 #include <opencv2/imgproc.hpp>
 
-#include "trtsam2lib.h"
-
 Sam2LabelCanvasCompat::Sam2LabelCanvasCompat(QWidget *parent) : QWidget(parent)
 {
     setMinimumSize(320, 240);
@@ -41,7 +39,7 @@ bool Sam2LabelCanvasCompat::toInitSamModel(int samTypeIndex, const QString &mode
         return false;
     }
 
-    std::shared_ptr<SamBase> nextModel = std::make_shared<TrtSam2>();
+    std::shared_ptr<TrtSam2> nextModel = std::make_shared<TrtSam2>();
     if (!nextModel->initialize(modelDir, 0))
     {
         qWarning() << "SAM2 init failed:" << modelDir;
@@ -538,7 +536,7 @@ void Sam2LabelCanvasCompat::toRunPointPrompt(const QPoint &widgetPoint)
 
     try
     {
-        const SamInferResult result = m_inferenceService->inferByPoint(imagePoint, toResolveCommitLabel());
+        const TrtSam2InferResult result = m_inferenceService->inferByPoint(imagePoint, toResolveCommitLabel());
         if (!result.success)
         {
             const QString errorMessage = result.errorMessage.isEmpty()
@@ -602,7 +600,7 @@ void Sam2LabelCanvasCompat::toRunRectPrompt(const QPoint &beginPt, const QPoint 
 
     try
     {
-        const SamInferResult result = m_inferenceService->inferByRect(promptRect, toResolveCommitLabel());
+        const TrtSam2InferResult result = m_inferenceService->inferByRect(promptRect, toResolveCommitLabel());
         if (!result.success)
         {
             const QString errorMessage = result.errorMessage.isEmpty()
@@ -825,7 +823,7 @@ void Sam2LabelCanvasCompat::toDrawImageInfoBar(QPainter &painter) const
                      fm.elidedText(text, Qt::ElideRight, qMax(0, barRect.width() - paddingX * 2)));
     painter.restore();
 }
-void Sam2LabelCanvasCompat::toCommitInferObjects(const SamInferResult &result)
+void Sam2LabelCanvasCompat::toCommitInferObjects(const TrtSam2InferResult &result)
 {
     if (!result.success || result.objects.isEmpty())
     {
@@ -833,7 +831,7 @@ void Sam2LabelCanvasCompat::toCommitInferObjects(const SamInferResult &result)
     }
 
     toClearCandidateRoi();
-    for (const SamObjectResult &objectResult : result.objects)
+    for (const TrtSam2ObjectResult &objectResult : result.objects)
     {
         const QVector<QPointF> contour = toPostProcessMaskContour(objectResult.maskContour);
         if (contour.size() < 3)

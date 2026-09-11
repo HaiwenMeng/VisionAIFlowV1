@@ -125,6 +125,13 @@ void MainDlg::UpdateWindowControlButtons()
 
 void MainDlg::OnTaskSelected(const QString &taskName)
 {
+    if (taskName.isEmpty())
+    {
+        m_taskName.clear();
+        setWindowTitle(QString(u8"VisionAIFlow 标注训练软件"));
+        return;
+    }
+
     TaskDefinition task;
     QString errorMessage;
     if (!TaskRepository::LoadTask(taskName, &task, &errorMessage))

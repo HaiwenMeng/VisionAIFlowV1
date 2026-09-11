@@ -10,6 +10,7 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QTableWidgetItem>
 #include <QUrl>
 
@@ -41,6 +42,7 @@ void ProJectForm::Refresh()
         return;
     }
 
+    const QSignalBlocker blocker(ui->TW_ListTask);
     ui->TW_ListTask->setRowCount(m_tasks.size());
     m_currentRow = -1;
     for (qsizetype index = 0; index < m_tasks.size(); ++index)
@@ -61,13 +63,23 @@ void ProJectForm::Refresh()
         }
         if (task.name == selectedTask)
         {
-            ui->TW_ListTask->selectRow(index);
+            m_currentRow = index;
         }
     }
-    if (!m_tasks.isEmpty() && ui->TW_ListTask->currentRow() < 0)
+    if (m_currentRow < 0 && !m_tasks.isEmpty())
     {
-        ui->TW_ListTask->selectRow(0);
+        m_currentRow = 0;
     }
+    if (m_currentRow >= 0)
+    {
+        ui->TW_ListTask->selectRow(m_currentRow);
+        ShowTask(m_tasks.at(m_currentRow));
+        emit TaskSelected(m_tasks.at(m_currentRow).name);
+        return;
+    }
+    ui->TW_LabelSet->setRowCount(0);
+    ui->PTE_Description->clear();
+    emit TaskSelected(QString());
 }
 
 QString ProJectForm::CurrentTaskName() const

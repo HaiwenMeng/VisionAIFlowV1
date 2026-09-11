@@ -136,6 +136,13 @@ bool TaskRepository::ListTasks(QVector<TaskDefinition> *tasks, QString *errorMes
 
 bool TaskRepository::LoadTask(const QString &taskName, TaskDefinition *task, QString *errorMessage)
 {
+    const QString taskDirectoryPath = QDir(LabelRoot()).filePath(taskName);
+    if (!QFileInfo::exists(taskDirectoryPath))
+    {
+        *errorMessage = QString(u8"项目不存在: %1").arg(taskName);
+        return false;
+    }
+
     QJsonObject object;
     const QString path = DefineLabelPath(taskName);
     const bool hasTaskDefinition = QFileInfo::exists(path);

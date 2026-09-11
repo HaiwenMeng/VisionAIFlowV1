@@ -1,5 +1,10 @@
 VAF_ROOT = $$clean_path($$PWD/../..)
+VAF_CUDA_QMAKE_ROOT = C:/PROGRA~1/NVIDIA~2/CUDA/v11.8
+VAF_TENSORRT_ROOT = E:/TensorRT-10.13.0.35
 include($$VAF_ROOT/qmake/common.pri)
+
+!exists($$VAF_CUDA_QMAKE_ROOT/include/cuda_runtime_api.h): error(CUDA 11.8 headers are missing at $$VAF_CUDA_QMAKE_ROOT)
+!exists($$VAF_TENSORRT_ROOT/include/NvInferVersion.h): error(TensorRT headers are missing at $$VAF_TENSORRT_ROOT)
 
 TEMPLATE = lib
 CONFIG -= c++20

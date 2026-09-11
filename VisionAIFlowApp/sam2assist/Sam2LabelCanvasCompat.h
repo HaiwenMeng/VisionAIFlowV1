@@ -13,7 +13,7 @@
 
 #include <memory>
 
-#include "sambaselib.h"
+#include "trtsam2lib.h"
 #include "ytyolodefine.h"
 
 class Sam2LabelCanvasCompat : public QWidget
@@ -95,7 +95,7 @@ private:
     void toDrawImageInfoBar(QPainter &painter) const;
     void toUpdateMouseImageInfo(const QPoint &widgetPoint);
     QString toImageInfoText() const;
-    void toCommitInferObjects(const SamInferResult &result);
+    void toCommitInferObjects(const TrtSam2InferResult &result);
     QVector<QPointF> toPostProcessMaskContour(const QVector<QPointF> &contour) const;
     void toClearCandidateRoi();
     void toReindexRoiStore();
@@ -114,7 +114,7 @@ private:
     int m_nextRoiKey = 1;
     int m_highlightedRoiKey = -1;
 
-    std::shared_ptr<SamBase> m_inferenceService;
+    std::shared_ptr<TrtSam2> m_inferenceService;
     int m_samTypeIndex = 0;
     QVector<double> m_candidateRoi;
     QVector<double> m_candidateMinRectRoi;

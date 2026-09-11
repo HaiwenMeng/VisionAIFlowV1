@@ -87,6 +87,7 @@ private:
     bool m_yoloEMode = false;
     QProcess *m_yoloeProcess = nullptr;
     QString m_yoloeOutputPath;
+    bool m_yoloeNoDetection = false;
 };
 
 #endif // VALSETFORM_H

@@ -28,9 +28,8 @@ VAF_APP_MODELS_DIR = $$VAF_ROOT/BINX64/model
 VAF_DEPENDS_DIR = $$VAF_ROOT/BaseLibX64/V4depends
 VAF_OPENCV_DIR = $$VAF_DEPENDS_DIR/Opencv
 VAF_SAM3_DIR = $$VAF_ROOT/LVMs/TrtSAM3Lib
-VAF_SAM2_DIR = F:/QtProject/SamProject/TrtSam2Lib
-VAF_SAM_BASE_DIR = F:/QtProject/SamProject/SamBaseLib
-VAF_SAM2_LIB_DIR = F:/ytprojectv2alln/BINX64_YoloTraingrayV2
+VAF_SAM2_DIR = $$VAF_ROOT/LVMs/TrtSAM2Lib
+VAF_SAM2_LIB_DIR = $$VAF_ROOT/BuildLib
 
 INCLUDEPATH += $$PWD \
                $$PWD/TrainForms/DetecForms \
@@ -39,7 +38,6 @@ INCLUDEPATH += $$PWD \
                $$PWD/AnnoForms/YoloEAnnoForm \
                $$PWD/sam2assist \
                $$VAF_SAM2_DIR \
-               $$VAF_SAM_BASE_DIR \
                  $$VAF_ROOT/UIProject/BaseAnnoDisp \
                  $$PWD/AnnoForms/SemiAutoAnnoForm \
                  $$VAF_SAM3_DIR \
@@ -190,8 +188,7 @@ LIBS += -lVisionAIFlowCore -lPluginApi -lBaseAnnoDisp \
         -L$$VAF_CUDA_QMAKE_ROOT/lib/x64 -lcudart -lcublas \
         -L$$VAF_TORCH_ROOT/lib -ltorch -ltorch_cpu -ltorch_cuda -lc10 -lc10_cuda \
         -L$$VAF_OPENVINO_ROOT/lib -lopenvino -ldelayimp
-LIBS += $$VAF_SAM2_LIB_DIR/TrtSam2Lib.lib \
-        $$VAF_SAM2_LIB_DIR/SamBaseLib.lib
+LIBS += $$VAF_SAM2_LIB_DIR/TrtSAM2Lib.lib
 
 CUDA_SOURCES += \
     $$VAF_SAM3_DIR/third_party/sam3src/common/memory.cu \
@@ -220,8 +217,7 @@ QMAKE_POST_LINK += copy /Y $$VAF_OPENVINO_ROOT_NATIVE\\bin\\openvino.dll $$VAF_B
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\BuildLib\\BaseAnnoDisp.dll $$VAF_BINARY_DIR_NATIVE\\BaseAnnoDisp.dll
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\VisionAIFlowApp\\ResourYolo\\Arial.ttf $$VAF_BINARY_DIR_NATIVE\\Arial.ttf
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\VisionAIFlowApp\\ResourYolo\\Arial.Unicode.ttf $$VAF_BINARY_DIR_NATIVE\\Arial.Unicode.ttf
-QMAKE_POST_LINK += && copy /Y F:\\ytprojectv2alln\\BINX64_YoloTraingrayV2\\TrtSam2Lib.dll $$VAF_BINARY_DIR_NATIVE\\TrtSam2Lib.dll
-QMAKE_POST_LINK += && copy /Y F:\\ytprojectv2alln\\BINX64_YoloTraingrayV2\\SamBaseLib.dll $$VAF_BINARY_DIR_NATIVE\\SamBaseLib.dll
+QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\BuildLib\\TrtSAM2Lib.dll $$VAF_BINARY_DIR_NATIVE\\TrtSAM2Lib.dll
 
 RESOURCES += \
     YtSRes.qrc \

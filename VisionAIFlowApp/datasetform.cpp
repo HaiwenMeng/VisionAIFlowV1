@@ -71,15 +71,6 @@ QVector<QString> DataSetForm::trainingLabelNames() const
 
 void DataSetForm::toInitShow()
 {
-
-    QDir temdir;
-    temdir.setPath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName);
-    //
-    if (!temdir.exists())
-    {
-        temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName);
-    }
-    //
     toLoadData();
     if (m_yoloEMode)
     {
@@ -287,6 +278,39 @@ void DataSetForm::toProDataGet(bool isadd)
                 qWarning() << "DataSetForm::toProDataGet image missing" << jsonPath << imagePath;
                 continue;
             }
+            QString datasetImagePath = imagePath;
+            QString datasetLabelPath =
+                QString("%1/%2.txt").arg(temdirSave.path()).arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex));
+            QString segmentLabelDirectory = temdirSave.path();
+            if (m_yoloEMode)
+            {
+                const QString split = j < minvalval ? QStringLiteral("val") : QStringLiteral("train");
+                const QString splitDirectory =
+                    QDir(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName).filePath(split);
+                datasetImagePath = QDir(splitDirectory + QStringLiteral("/images"))
+                                       .filePath(QFileInfo(m_YtRoiLabelSet.m_imagePath).fileName());
+                datasetLabelPath =
+                    QDir(splitDirectory + QStringLiteral("/labels"))
+                        .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
+                segmentLabelDirectory = QFileInfo(datasetLabelPath).absolutePath();
+                if (QFileInfo::exists(datasetImagePath) || QFileInfo::exists(datasetLabelPath))
+                {
+                    m_DataGenErrorMessage =
+                        QString(u8"YOLOE数据集中存在同名文件: %1").arg(QFileInfo(datasetImagePath).fileName());
+                    qWarning() << m_DataGenErrorMessage << jsonPath;
+                    emit Sigfinish();
+                    return;
+                }
+                QFile sourceImage(imagePath);
+                if (!sourceImage.copy(datasetImagePath))
+                {
+                    m_DataGenErrorMessage = QString(u8"复制YOLOE数据集图像失败: %1 -> %2, %3")
+                                                .arg(imagePath, datasetImagePath, sourceImage.errorString());
+                    qWarning() << m_DataGenErrorMessage;
+                    emit Sigfinish();
+                    return;
+                }
+            }
             if (runIndex == 0)
             {
                 // 矩形目标识别
@@ -298,7 +322,14 @@ void DataSetForm::toProDataGet(bool isadd)
             }
             else if (runIndex == 2)
             {
-                m_YtRoiLabelSet.toSaveSegTxt(temdirSave.path(), trainingLabelNames());
+                m_YtRoiLabelSet.toSaveSegTxt(segmentLabelDirectory, trainingLabelNames());
+                if (m_yoloEMode && (!QFileInfo::exists(datasetLabelPath) || QFileInfo(datasetLabelPath).size() <= 0))
+                {
+                    m_DataGenErrorMessage = QString(u8"生成YOLOE分割标签失败或标签为空: %1").arg(datasetLabelPath);
+                    qWarning() << m_DataGenErrorMessage << jsonPath;
+                    emit Sigfinish();
+                    return;
+                }
             }
             else if (runIndex == 3)
             {
@@ -475,11 +506,7 @@ void DataSetForm::toProDataGet(bool isadd)
                                             .arg(m_YtRoiLabelSet.m_imagePath));
                         }
                     }
-                    Valout << QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath) << ","
-                           << QString("%1/%2.txt")
-                                  .arg(temdirSave.path())
-                                  .arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex))
-                           << "\n";
+                    Valout << datasetImagePath << "," << datasetLabelPath << "\n";
                 }
                 else
                 {
@@ -506,11 +533,7 @@ void DataSetForm::toProDataGet(bool isadd)
                                             .arg(m_YtRoiLabelSet.m_imagePath));
                         }
                     }
-                    Trainout << QString("%1/%2").arg(getfilelis.at(j).path()).arg(m_YtRoiLabelSet.m_imagePath) << ","
-                             << QString("%1/%2.txt")
-                                    .arg(temdirSave.path())
-                                    .arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex))
-                             << "\n";
+                    Trainout << datasetImagePath << "," << datasetLabelPath << "\n";
                 }
             }
         }
@@ -833,7 +856,10 @@ void DataSetForm::on_PB_RunDataGen_clicked()
         return;
     }
     const QString dataDirectory = YtYoloDefine::toGetDataPath() + "/" + m_ProcessName;
-    if (QDir(dataDirectory).exists() &&
+    const QDir existingDataDirectory(dataDirectory);
+    const bool hasExistingData = existingDataDirectory.exists() &&
+                                 !existingDataDirectory.entryList(QDir::NoDotAndDotDot | QDir::AllEntries).isEmpty();
+    if (hasExistingData &&
         QMessageBox::question(this,
                               QString(u8"重新生成数据集"),
                               QString(u8"将清空并重新生成以下目录中的数据:\n%1\n是否继续?").arg(dataDirectory),
