@@ -198,10 +198,13 @@ Yolo11Validator::decodeAndNms(const std::vector<torch::Tensor> &features,
         for (int64_t index = 0; index < candidateBoxes.size(0); ++index)
         {
             Yolo11Detection detection;
-            detection.box.x1 = std::clamp(boxAccessor[index][0], 0.0f, static_cast<float>(imageWidth));
-            detection.box.y1 = std::clamp(boxAccessor[index][1], 0.0f, static_cast<float>(imageHeight));
-            detection.box.x2 = std::clamp(boxAccessor[index][2], 0.0f, static_cast<float>(imageWidth));
-            detection.box.y2 = std::clamp(boxAccessor[index][3], 0.0f, static_cast<float>(imageHeight));
+            // Keep raw network-space boxes for NMS. Ultralytics performs NMS
+            // before scale/clip; clipping first can slightly change IoU for
+            // boxes crossing an image boundary.
+            detection.box.x1 = boxAccessor[index][0];
+            detection.box.y1 = boxAccessor[index][1];
+            detection.box.x2 = boxAccessor[index][2];
+            detection.box.y2 = boxAccessor[index][3];
             detection.confidence = confidenceAccessor[index];
             detection.classId = static_cast<int>(classAccessor[index]);
 
@@ -256,7 +259,21 @@ Yolo11Validator::decodeAndNms(const std::vector<torch::Tensor> &features,
             }
         }
 
-        batchDetections[static_cast<size_t>(batchIndex)] = std::move(selected);
+        std::vector<Yolo11Detection> clipped;
+        clipped.reserve(selected.size());
+        for (Yolo11Detection detection : selected)
+        {
+            detection.box.x1 = std::clamp(detection.box.x1, 0.0f, static_cast<float>(imageWidth));
+            detection.box.y1 = std::clamp(detection.box.y1, 0.0f, static_cast<float>(imageHeight));
+            detection.box.x2 = std::clamp(detection.box.x2, 0.0f, static_cast<float>(imageWidth));
+            detection.box.y2 = std::clamp(detection.box.y2, 0.0f, static_cast<float>(imageHeight));
+            if (detection.box.x2 > detection.box.x1 && detection.box.y2 > detection.box.y1)
+            {
+                clipped.push_back(detection);
+            }
+        }
+
+        batchDetections[static_cast<size_t>(batchIndex)] = std::move(clipped);
     }
 
     return batchDetections;

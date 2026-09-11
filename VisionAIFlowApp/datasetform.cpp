@@ -46,6 +46,29 @@ void DataSetForm::toSetProcessName(QString Setname)
     m_ProcessName = Setname;
 }
 
+void DataSetForm::setYoloEMode(bool enabled)
+{
+    m_yoloEMode = enabled;
+    if (enabled)
+    {
+        ui->comboBox->setCurrentIndex(2);
+    }
+    ui->comboBox->setEnabled(!enabled);
+}
+
+QVector<QString> DataSetForm::trainingLabelNames() const
+{
+    QVector<QString> names;
+    for (const QString &name : m_YtYoloSetPro.m_NameList)
+    {
+        if (!m_yoloEMode || name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0)
+        {
+            names.append(name);
+        }
+    }
+    return names;
+}
+
 void DataSetForm::toInitShow()
 {
 
@@ -58,6 +81,10 @@ void DataSetForm::toInitShow()
     }
     //
     toLoadData();
+    if (m_yoloEMode)
+    {
+        ui->comboBox->setCurrentIndex(2);
+    }
     toShowData();
 }
 
@@ -214,6 +241,21 @@ void DataSetForm::toProDataGet(bool isadd)
             qInfo() << "DataSetForm::toProDataGet json loaded" << jsonPath << "image" << m_YtRoiLabelSet.m_imagePath
                     << "labels" << m_YtRoiLabelSet.m_NameSetLis << "roi count" << m_YtRoiLabelSet.m_SetLabeset.size();
 
+            if (m_yoloEMode)
+            {
+                for (LabelSet &label : m_YtRoiLabelSet.m_SetLabeset)
+                {
+                    if (label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0 &&
+                        label.toGetRoiType() != LabelSet::LpolygonROI)
+                    {
+                        m_DataGenErrorMessage = QString(u8"YOLOE仅接受多边形mask标注: %1").arg(jsonPath);
+                        qWarning() << m_DataGenErrorMessage;
+                        emit Sigfinish();
+                        return;
+                    }
+                }
+            }
+
             // 负样本（背景图）在后面才加到训练集csv。
             // train.csv中，background类别样本一定要在train的其他类别样本后面，否则python端生成.cache那一步会报错。
 
@@ -256,7 +298,7 @@ void DataSetForm::toProDataGet(bool isadd)
             }
             else if (runIndex == 2)
             {
-                m_YtRoiLabelSet.toSaveSegTxt(temdirSave.path(), m_YtYoloSetPro.m_NameList);
+                m_YtRoiLabelSet.toSaveSegTxt(temdirSave.path(), trainingLabelNames());
             }
             else if (runIndex == 3)
             {
@@ -672,9 +714,10 @@ void DataSetForm::toSaveData(int changele, bool datapp)
 
     outt << "names:"
          << "\n";
-    for (int i = 0; i < m_YtYoloSetPro.m_NameList.size(); i++)
+    const QVector<QString> names = trainingLabelNames();
+    for (int i = 0; i < names.size(); i++)
     {
-        outt << QString("  %1: %2").arg(i).arg(m_YtYoloSetPro.m_NameList.at(i)) << "\n";
+        outt << QString("  %1: %2").arg(i).arg(names.at(i)) << "\n";
     }
     outt << QString("channels: %1").arg(changele) << "\n";
     if (datapp)
@@ -770,6 +813,10 @@ QString DataSetForm::toGetRunType()
 int DataSetForm::toGetRunIndex()
 {
     toLoadData();
+    if (m_yoloEMode)
+    {
+        ui->comboBox->setCurrentIndex(2);
+    }
     if (m_TrainLabelSetfilename.size() < 1)
     {
         return -1;
@@ -783,6 +830,16 @@ void DataSetForm::on_PB_RunDataGen_clicked()
     {
         qWarning() << u8"未勾选任何标注目录, 无法生成数据集";
         QMessageBox::warning(0, u8"警告", u8"未勾选任何标注目录, 无法生成数据集", u8"确定");
+        return;
+    }
+    const QString dataDirectory = YtYoloDefine::toGetDataPath() + "/" + m_ProcessName;
+    if (QDir(dataDirectory).exists() &&
+        QMessageBox::question(this,
+                              QString(u8"重新生成数据集"),
+                              QString(u8"将清空并重新生成以下目录中的数据:\n%1\n是否继续?").arg(dataDirectory),
+                              QMessageBox::Yes | QMessageBox::No,
+                              QMessageBox::No) != QMessageBox::Yes)
+    {
         return;
     }
     QDir temdirPlus;
@@ -800,7 +857,7 @@ void DataSetForm::on_PB_RunDataGen_clicked()
     }
     // toProDataGet();
     m_DataGenErrorMessage.clear();
-    m_DataGenRunIndex = ui->comboBox->currentIndex();
+    m_DataGenRunIndex = m_yoloEMode ? 2 : ui->comboBox->currentIndex();
     qInfo() << "DataSetForm::on_PB_RunDataGen_clicked start"
             << "process" << m_ProcessName << "run index" << m_DataGenRunIndex;
     m_GetKeys.clear();

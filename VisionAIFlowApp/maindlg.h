@@ -17,6 +17,8 @@ class TrainDataForm;
 class ValSetForm;
 class CommonSetForm;
 class MainWindow;
+class YoloeLabelForm;
+class YoloeTrainForm;
 class SystemForm;
 
 class MainDlg final : public QWidget
@@ -41,7 +43,8 @@ private slots:
     void on_PB_SystemSet_clicked();
 
 private:
-    bool RequireDetectionTask();
+    bool RequireSupportedTask();
+    bool CurrentTaskIsYoloE() const;
     bool RequireGeneratedDataset();
     void SetCurrentNavButton(QPushButton *button);
     void ShowUnavailable(const QString &featureName);
@@ -55,6 +58,8 @@ private:
     ValSetForm *m_valSetForm;
     CommonSetForm *m_commonSetForm;
     MainWindow *m_semiAutoAnnoForm = nullptr;
+    YoloeLabelForm *m_yoloeLabelForm = nullptr;
+    YoloeTrainForm *m_yoloeTrainForm;
     SystemForm *m_systemForm;
     QString m_taskName;
 };

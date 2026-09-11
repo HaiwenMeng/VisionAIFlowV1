@@ -2,6 +2,7 @@
 
 #include "yolov11inference.h"
 #include "yolov11loss.h"
+#include "yolov11validator.h"
 
 #include <QDir>
 #include <QDebug>
@@ -26,6 +27,7 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 namespace visionaiflow::yolov11
@@ -52,6 +54,10 @@ struct PreparedSample final
     cv::Mat image;
     std::vector<DetectionBox> boxes;
     QString imagePath;
+};
+
+struct ValidationCancelled final
+{
 };
 
 struct AugmentationSettings final
@@ -693,6 +699,77 @@ torch::Tensor ImageToTensor(const cv::Mat &bgrImage)
         .contiguous();
 }
 
+// Build one validation batch using exactly the same deterministic resize +
+// letterbox path as the existing validation label preview. The resulting
+// target tensor follows the loss/validator convention:
+// [batch_index, class_id, cx, cy, width, height], normalized to network input.
+bool BuildValidationBatch(const QVector<TrainingSample> &samples,
+                          const int batchIndex,
+                          const plugin_api::DetectionTrainConfig &config,
+                          const torch::Device &device,
+                          Yolo11ValidationBatch *batch,
+                          QString *errorMessage)
+{
+    if (batch == nullptr || batchIndex < 0 || config.batchSize <= 0)
+    {
+        *errorMessage = QString(u8"YOLO11 验证批次参数无效");
+        return false;
+    }
+
+    const int begin = batchIndex * config.batchSize;
+    const int end = std::min(begin + config.batchSize, static_cast<int>(samples.size()));
+    if (begin >= end)
+    {
+        *errorMessage = QString(u8"YOLO11 验证批次为空: %1").arg(batchIndex);
+        return false;
+    }
+
+    std::vector<torch::Tensor> images;
+    std::vector<std::array<float, 6>> targetRows;
+    images.reserve(static_cast<size_t>(end - begin));
+
+    for (int index = begin; index < end; ++index)
+    {
+        PreparedSample prepared;
+        if (!BuildValidationSample(samples.at(index),
+                                   config.imageWidth,
+                                   config.classNames.size(),
+                                   &prepared,
+                                   errorMessage))
+        {
+            return false;
+        }
+
+        images.push_back(ImageToTensor(prepared.image));
+        const int batchImageIndex = index - begin;
+        for (const DetectionBox &box : prepared.boxes)
+        {
+            const float centerX = (box.x1 + box.x2) * 0.5F / config.imageWidth;
+            const float centerY = (box.y1 + box.y2) * 0.5F / config.imageHeight;
+            const float boxWidth = (box.x2 - box.x1) / config.imageWidth;
+            const float boxHeight = (box.y2 - box.y1) / config.imageHeight;
+            targetRows.push_back({static_cast<float>(batchImageIndex),
+                                  static_cast<float>(box.classId),
+                                  centerX,
+                                  centerY,
+                                  boxWidth,
+                                  boxHeight});
+        }
+    }
+
+    batch->images = torch::stack(images).to(device);
+    batch->targets = torch::zeros({0, 6}, torch::TensorOptions().dtype(torch::kFloat32));
+    if (!targetRows.empty())
+    {
+        batch->targets = torch::from_blob(targetRows.data(),
+                                          {static_cast<int64_t>(targetRows.size()), 6},
+                                          torch::TensorOptions().dtype(torch::kFloat32))
+                             .clone();
+    }
+    return true;
+}
+
+
 bool SaveBatchPlot(const std::vector<PreparedSample> &samples,
                    const QStringList &classNames,
                    const bool useClassNames,
@@ -1047,6 +1124,7 @@ Yolo11Trainer::train(std::atomic_bool &stopRequested, const ProgressCallback &on
             std::shuffle(indices.begin(), indices.end(), generator);
             const bool mosaicEnabled =
                 augmentation.closeMosaic <= 0 || epoch < m_config.epochs - augmentation.closeMosaic;
+            plugin_api::DetectionTrainProgress epochProgress;
             for (int step = 0; step < totalSteps; ++step)
             {
                 if (stopRequested.load())
@@ -1132,9 +1210,17 @@ Yolo11Trainer::train(std::atomic_bool &stopRequested, const ProgressCallback &on
                 progress.dflLoss = loss.items[2].item<double>();
                 progress.positiveCount = static_cast<int>(loss.positiveAnchorCount);
                 progress.meanIou = loss.meanIou;
+                progress.map50 = 0.0;
+                progress.map5095 = 0.0;
+                progress.hasValidationMetrics = false;
                 progress.modelPath = lastPath;
                 progress.bestCheckpointPath = bestPath;
-                onProgress(progress);
+                // Keep the last step of this epoch locally. The public
+                // progress callback is emitted once after validation so the
+                // UI receives a coherent Loss/IoU/mAP point for the same
+                // completed epoch and cannot miss a short-lived validation
+                // state between polling intervals.
+                epochProgress = progress;
                 if (currentLoss < bestLoss)
                 {
                     bestLoss = currentLoss;
@@ -1152,6 +1238,81 @@ Yolo11Trainer::train(std::atomic_bool &stopRequested, const ProgressCallback &on
             {
                 return TrainRunResult::Failed;
             }
+
+            if (stopRequested.load())
+            {
+                return TrainRunResult::Cancelled;
+            }
+
+            // mAP is not a training-batch loss. Run a complete deterministic
+            // validation pass after each epoch and publish exactly one metric
+            // point for that epoch.
+            Yolo11ValidatorOptions validatorOptions;
+            validatorOptions.classCount = static_cast<int>(m_config.classNames.size());
+            validatorOptions.regMax = 16;
+            validatorOptions.confidenceThreshold = 0.001F;
+            validatorOptions.nmsIouThreshold = 0.70F;
+            validatorOptions.maxDetections = 300;
+            validatorOptions.maxNmsCandidates = 30000;
+            validatorOptions.multiLabel = true;
+            Yolo11Validator validator(validatorOptions);
+            const int64_t validationBatchCount =
+                (validationSamples.size() + m_config.batchSize - 1) / m_config.batchSize;
+
+            Yolo11ValidationMetrics validationMetrics;
+            model->eval();
+            try
+            {
+                validationMetrics = validator.validate(
+                    validationBatchCount,
+                    [&](const int64_t validationBatchIndex, Yolo11ValidationBatch &batch)
+                    {
+                        if (stopRequested.load())
+                        {
+                            throw ValidationCancelled{};
+                        }
+                        QString validationError;
+                        if (!BuildValidationBatch(validationSamples,
+                                                  static_cast<int>(validationBatchIndex),
+                                                  m_config,
+                                                  device,
+                                                  &batch,
+                                                  &validationError))
+                        {
+                            throw std::runtime_error(validationError.toStdString());
+                        }
+                        return true;
+                    },
+                    [&](const torch::Tensor &images)
+                    {
+                        return model->forward(images);
+                    });
+            }
+            catch (const ValidationCancelled &)
+            {
+                model->train();
+                return TrainRunResult::Cancelled;
+            }
+            catch (...)
+            {
+                model->train();
+                throw;
+            }
+            model->train();
+
+            epochProgress.map50 = validationMetrics.map50;
+            epochProgress.map5095 = validationMetrics.map5095;
+            epochProgress.hasValidationMetrics = true;
+            epochProgress.train.message = QStringLiteral("validated");
+            onProgress(epochProgress);
+            qInfo().noquote()
+                << QStringLiteral("YOLO11 epoch %1 validation: mAP50=%2, mAP50-95=%3, images=%4, GT=%5, predictions=%6")
+                       .arg(epoch + 1)
+                       .arg(validationMetrics.map50, 0, 'f', 6)
+                       .arg(validationMetrics.map5095, 0, 'f', 6)
+                       .arg(validationMetrics.imageCount)
+                       .arg(validationMetrics.groundTruthCount)
+                       .arg(validationMetrics.predictionCount);
         }
         return TrainRunResult::Completed;
     }

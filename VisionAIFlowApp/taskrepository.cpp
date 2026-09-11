@@ -349,6 +349,8 @@ QString TaskRepository::DisplayType(const visionaiflow::domain::ProjectType type
     {
     case visionaiflow::domain::ProjectType::Detection:
         return QString(u8"目标检测");
+    case visionaiflow::domain::ProjectType::YoloE:
+        return QStringLiteral("YOLOE");
     case visionaiflow::domain::ProjectType::Classification:
         return QString(u8"图像分类");
     case visionaiflow::domain::ProjectType::InstanceSegmentation:
@@ -386,6 +388,16 @@ QString TaskRepository::DisplayProgress(const QString &progress)
 bool TaskRepository::IsDetection(const TaskDefinition &task)
 {
     return task.type == visionaiflow::domain::ProjectType::Detection;
+}
+
+bool TaskRepository::IsYoloE(const TaskDefinition &task)
+{
+    return task.type == visionaiflow::domain::ProjectType::YoloE;
+}
+
+bool TaskRepository::IsSupportedTrainingTask(const TaskDefinition &task)
+{
+    return IsDetection(task) || IsYoloE(task);
 }
 
 bool TaskRepository::EnsureTaskDirectories(const QString &taskName, QString *errorMessage)

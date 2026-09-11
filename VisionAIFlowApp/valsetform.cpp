@@ -19,6 +19,11 @@ ValSetForm::ValSetForm(QWidget *parent)
 
 ValSetForm::~ValSetForm()
 {
+    if (m_yoloeProcess)
+    {
+        m_yoloeProcess->kill();
+        m_yoloeProcess->waitForFinished(3000);
+    }
     if (m_SetProcess)
     {
         m_SetProcess->close();
@@ -33,12 +38,21 @@ void ValSetForm::toSetProcessName(QString Setname)
     m_ProcessName = Setname;
 }
 
+void ValSetForm::setYoloEMode(bool enabled)
+{
+    m_yoloEMode = enabled;
+    ui->LB_YoloeReference->setVisible(enabled);
+    ui->LE_YoloeReference->setVisible(enabled);
+    ui->PB_SelectYoloeReference->setVisible(enabled);
+}
+
 void ValSetForm::toInitShow()
 {
-    const bool isDetectionTask = m_DataSetForm->toGetRunIndex() == 0;
+    const bool isDetectionTask = !m_yoloEMode && m_DataSetForm->toGetRunIndex() == 0;
     ui->CB_DetectionPlugin->setEnabled(isDetectionTask);
     ui->LE_DetectionModel->setEnabled(isDetectionTask);
     ui->PB_SelectDetectionModel->setEnabled(isDetectionTask);
+    ui->LE_DetectionModel->setEnabled(isDetectionTask || m_yoloEMode);
     //
     QDir temdir;
     temdir.setPath(YtYoloDefine::toGetValuePath() + "/" + m_ProcessName);
@@ -50,8 +64,10 @@ void ValSetForm::toInitShow()
     m_YtYoloSetPro.toLoadData(YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName);
     toLoadCsv();
     RefreshDetectionPlugins();
-    ui->LE_DetectionModel->setText(QDir(YtYoloDefine::toGetTrainPath())
-                                       .filePath(m_ProcessName + QStringLiteral("/detect/train/weights/best.pt")));
+    ui->LE_DetectionModel->setText(
+        QDir(YtYoloDefine::toGetTrainPath())
+            .filePath(m_ProcessName + (m_yoloEMode ? QStringLiteral("/yoloe/final/yoloe-11s-seg-vp.pt")
+                                                   : QStringLiteral("/detect/train/weights/best.pt"))));
 }
 
 void ValSetForm::RefreshDetectionPlugins()
@@ -533,6 +549,11 @@ void ValSetForm::on_PB_ProVal_clicked()
         QMessageBox::critical(this, QString(u8"检测推理失败"), errorMessage);
         return;
     }
+    if (m_yoloEMode)
+    {
+        runYoloeInference();
+        return;
+    }
     if (m_DataSetForm->toGetRunIndex() == 0)
     {
         RunDetectionInference();
@@ -710,6 +731,93 @@ void ValSetForm::on_PB_SelectDetectionModel_clicked()
         return;
     }
     ui->LE_DetectionModel->setText(modelPath);
+}
+
+void ValSetForm::on_PB_SelectYoloeReference_clicked()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        QString(u8"选择YOLOE参考标注图"),
+        QDir(YtYoloDefine::toGetDataPath()).filePath(m_ProcessName + QStringLiteral("/train/images")),
+        QString(u8"图像文件 (*.jpg *.jpeg *.png *.bmp)"));
+    if (!path.isEmpty())
+    {
+        ui->LE_YoloeReference->setText(path);
+    }
+}
+
+bool ValSetForm::runYoloeInference()
+{
+    if (ui->listWidget->currentItem() == nullptr)
+    {
+        QMessageBox::critical(this, QString(u8"YOLOE推理失败"), QString(u8"请选择一张查询图"));
+        return false;
+    }
+    const QString referenceImage = ui->LE_YoloeReference->text().trimmed();
+    const QString referenceLabel = QFileInfo(referenceImage).absolutePath() + QStringLiteral("/../labels/") +
+                                   QFileInfo(referenceImage).completeBaseName() + QStringLiteral(".txt");
+    const QString modelPath = ui->LE_DetectionModel->text().trimmed();
+    const QString pythonExe = QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("python.exe"));
+    const QString script =
+        QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("YOLOE/infer_project_yoloe_seg.py"));
+    m_yoloeOutputPath =
+        QDir(YtYoloDefine::toGetValuePath()).filePath(m_ProcessName + QStringLiteral("/yoloe_result.png"));
+    const QStringList required{pythonExe, script, modelPath, referenceImage, QDir::cleanPath(referenceLabel)};
+    for (const QString &path : required)
+    {
+        if (!QFileInfo::exists(path))
+        {
+            const QString errorMessage = QString(u8"YOLOE推理所需文件不存在: %1").arg(path);
+            AppendLog(errorMessage);
+            QMessageBox::critical(this, QString(u8"YOLOE推理失败"), errorMessage);
+            return false;
+        }
+    }
+    if (m_yoloeProcess != nullptr && m_yoloeProcess->state() != QProcess::NotRunning)
+    {
+        QMessageBox::warning(this, QString(u8"YOLOE推理"), QString(u8"推理正在运行"));
+        return false;
+    }
+    if (m_yoloeProcess == nullptr)
+    {
+        m_yoloeProcess = new QProcess(this);
+        m_yoloeProcess->setProcessChannelMode(QProcess::MergedChannels);
+        connect(m_yoloeProcess,
+                &QProcess::readyReadStandardOutput,
+                this,
+                [this]()
+                {
+                    AppendLog(QString::fromUtf8(m_yoloeProcess->readAllStandardOutput()).trimmed());
+                });
+        connect(m_yoloeProcess,
+                qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+                this,
+                [this](int exitCode, QProcess::ExitStatus exitStatus)
+                {
+                    if (exitStatus != QProcess::NormalExit || exitCode != 0)
+                    {
+                        AppendLog(QString(u8"YOLOE推理失败, 退出码 %1").arg(exitCode));
+                        return;
+                    }
+                    QImage result(m_yoloeOutputPath);
+                    if (result.isNull())
+                    {
+                        AppendLog(QString(u8"YOLOE推理未生成结果图: %1").arg(m_yoloeOutputPath));
+                        return;
+                    }
+                    m_OverPlayShow.toClearData();
+                    ui->ytRoiShowDisp->toSetImage(result);
+                    ui->ytRoiShowDisp->toUpdateShow();
+                    AppendLog(QString(u8"YOLOE分割推理完成"));
+                });
+    }
+    QStringList arguments;
+    arguments << script << QStringLiteral("--model") << modelPath << QStringLiteral("--reference-image")
+              << referenceImage << QStringLiteral("--reference-label") << QDir::cleanPath(referenceLabel)
+              << QStringLiteral("--query-image") << ui->listWidget->currentItem()->text() << QStringLiteral("--output")
+              << m_yoloeOutputPath << QStringLiteral("--conf") << QString::number(ui->doubleSpinBox->value());
+    m_yoloeProcess->start(pythonExe, arguments);
+    return true;
 }
 
 void ValSetForm::on_PB_RunReplace_clicked()

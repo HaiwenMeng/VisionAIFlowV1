@@ -20,6 +20,7 @@ public:
 
 private slots:
     void on_PB_ViewWorkPath_clicked();
+    void on_PB_PythonPath_clicked();
 
 private:
     Ui::SystemForm *ui;

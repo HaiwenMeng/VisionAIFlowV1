@@ -87,18 +87,31 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     connect(m_trainingController,
             &DetectTrainingController::EpochProgress,
             this,
-            [this](int epoch, int step, double loss, double boxLoss, double classLoss, int positives, double meanIou)
+            [this](int epoch,
+                   int step,
+                   double loss,
+                   double boxLoss,
+                   double classLoss,
+                   int positives,
+                   double meanIou,
+                   double map50,
+                   double map5095)
             {
                 ui->ChartWidget->toInsertData(0, epoch, static_cast<float>(meanIou));
                 ui->ChartWidget->toInsertData(1, epoch, static_cast<float>(loss));
-                AppendLog(QString(u8"轮次: %1, 步数: %2, 损失: %3, 框损失: %4, 分类损失: %5, 正样本: %6, IoU: %7")
-                              .arg(epoch)
-                              .arg(step)
-                              .arg(loss, 0, 'f', 6)
-                              .arg(boxLoss, 0, 'f', 6)
-                              .arg(classLoss, 0, 'f', 6)
-                              .arg(positives)
-                              .arg(meanIou, 0, 'f', 6));
+                ui->ChartWidget->toInsertData(2, epoch, static_cast<float>(map50));
+                AppendLog(
+                    QString(u8"轮次: %1, 步数: %2, 损失: %3, 框损失: %4, 分类损失: %5, 正样本: %6, IoU: %7, "
+                               "mAP50: %8, mAP50-95: %9")
+                        .arg(epoch)
+                        .arg(step)
+                        .arg(loss, 0, 'f', 6)
+                        .arg(boxLoss, 0, 'f', 6)
+                        .arg(classLoss, 0, 'f', 6)
+                        .arg(positives)
+                        .arg(meanIou, 0, 'f', 6)
+                        .arg(map50, 0, 'f', 6)
+                        .arg(map5095, 0, 'f', 6));
             });
     connect(
         m_trainingController,
@@ -384,12 +397,15 @@ void TrainDataForm::on_PB_Val1_clicked()
 
 void TrainDataForm::InitChart()
 {
+    // IoU and mAP50 are both [0, 1] metrics and share the left Y axis.
+    // Loss keeps using the existing secondary axis.
     ui->ChartWidget->toAddLineSerices(Qt::green, QStringLiteral("IoU"), 0);
     ui->ChartWidget->toAddLineSerices(Qt::red, QStringLiteral("Loss"), 1);
+    ui->ChartWidget->toAddLineSerices(Qt::blue, QStringLiteral("mAP50"), 0);
     ui->ChartWidget->toInitChart(QString());
     ui->ChartWidget->toSetCrosshairVisible(true);
     ui->ChartWidget->toSetXAxis(1, ui->SB_epoch->value(), 1, 10, QString(u8"轮次"));
-    ui->ChartWidget->toSetYAxis(0, 1, 4, QStringLiteral("IoU"));
+    ui->ChartWidget->toSetYAxis(0, 1, 4, QStringLiteral("IoU / mAP50"));
     ui->ChartWidget->toSetOtherAxis(0, 1, 4, QStringLiteral("Loss"));
 }
 

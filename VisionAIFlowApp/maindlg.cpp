@@ -8,6 +8,8 @@
 #include "systemform.h"
 #include "taskrepository.h"
 #include "TrainForms/DetecForms/traindataform.h"
+#include "TrainForms/YoloEForms/yoloetrainform.h"
+#include "AnnoForms/YoloEAnnoForm/YoloeLabelForm.h"
 #include "valsetform.h"
 
 #include <QDebug>
@@ -24,7 +26,8 @@
 MainDlg::MainDlg(QWidget *parent)
     : QWidget(parent), ui(new Ui::MainDlg), m_projectForm(new ProJectForm(this)), m_dataSetForm(new DataSetForm(this)),
       m_trainDataForm(new TrainDataForm(this)), m_valSetForm(new ValSetForm(this)),
-      m_commonSetForm(new CommonSetForm(this)), m_systemForm(new SystemForm(this))
+      m_commonSetForm(new CommonSetForm(this)), m_yoloeTrainForm(new YoloeTrainForm(this)),
+      m_systemForm(new SystemForm(this))
 {
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     ui->setupUi(this);
@@ -52,6 +55,7 @@ MainDlg::MainDlg(QWidget *parent)
     const QList<QWidget *> pages{m_projectForm,
                                  m_dataSetForm,
                                  m_trainDataForm,
+                                 m_yoloeTrainForm,
                                  m_valSetForm,
                                  m_commonSetForm,
                                  m_systemForm};
@@ -136,7 +140,7 @@ void MainDlg::OnTaskSelected(const QString &taskName)
 
 void MainDlg::on_PB_ProJectMange_clicked()
 {
-    if (!m_trainDataForm->isrunstate())
+    if (!m_trainDataForm->isrunstate() || !m_yoloeTrainForm->isIdle())
     {
         ReportError(QString(u8"正在训练，无法切换项目"));
         return;
@@ -149,7 +153,7 @@ void MainDlg::on_PB_ProJectMange_clicked()
 
 void MainDlg::on_PB_LabSet_clicked()
 {
-    if (!RequireDetectionTask())
+    if (!RequireSupportedTask())
     {
         return;
     }
@@ -161,8 +165,23 @@ void MainDlg::on_PB_LabSet_clicked()
 
 void MainDlg::on_PB_SemiLabSet_clicked()
 {
-    if (!RequireDetectionTask())
+    if (!RequireSupportedTask())
     {
+        return;
+    }
+
+    if (CurrentTaskIsYoloE())
+    {
+        if (m_yoloeLabelForm == nullptr)
+        {
+            m_yoloeLabelForm = new YoloeLabelForm(this);
+            m_yoloeLabelForm->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+            ui->stackedWidget->addWidget(m_yoloeLabelForm);
+        }
+        m_yoloeLabelForm->setTaskName(m_taskName);
+        ui->stackedWidget->setCurrentWidget(m_yoloeLabelForm);
+        SetCurrentNavButton(ui->PB_SemiLabSet);
+        m_yoloeLabelForm->initialize();
         return;
     }
 
@@ -181,12 +200,13 @@ void MainDlg::on_PB_SemiLabSet_clicked()
 
 void MainDlg::on_PB_DataSet_clicked()
 {
-    if (!RequireDetectionTask())
+    if (!RequireSupportedTask())
     {
         return;
     }
 
     m_dataSetForm->toSetProcessName(m_taskName);
+    m_dataSetForm->setYoloEMode(CurrentTaskIsYoloE());
     m_dataSetForm->toInitShow();
     ui->stackedWidget->setCurrentWidget(m_dataSetForm);
     SetCurrentNavButton(ui->PB_DataSet);
@@ -194,7 +214,7 @@ void MainDlg::on_PB_DataSet_clicked()
 
 void MainDlg::on_PB_TrainPro_clicked()
 {
-    if (!RequireDetectionTask() || !RequireGeneratedDataset())
+    if (!RequireSupportedTask() || !RequireGeneratedDataset())
     {
         return;
     }
@@ -202,6 +222,20 @@ void MainDlg::on_PB_TrainPro_clicked()
     if (m_semiAutoAnnoForm != nullptr)
     {
         m_semiAutoAnnoForm->releaseSam3();
+    }
+
+    if (m_yoloeLabelForm != nullptr)
+    {
+        m_yoloeLabelForm->releaseSam2();
+    }
+
+    if (CurrentTaskIsYoloE())
+    {
+        m_yoloeTrainForm->setTaskName(m_taskName);
+        m_yoloeTrainForm->initialize();
+        ui->stackedWidget->setCurrentWidget(m_yoloeTrainForm);
+        SetCurrentNavButton(ui->PB_TrainPro);
+        return;
     }
 
     m_trainDataForm->toSetProcessName(m_taskName);
@@ -213,12 +247,13 @@ void MainDlg::on_PB_TrainPro_clicked()
 
 void MainDlg::on_PB_ValPro_clicked()
 {
-    if (!RequireDetectionTask() || !RequireGeneratedDataset())
+    if (!RequireSupportedTask() || !RequireGeneratedDataset())
     {
         return;
     }
 
     m_valSetForm->m_DataSetForm = m_dataSetForm;
+    m_valSetForm->setYoloEMode(CurrentTaskIsYoloE());
     m_valSetForm->toSetProcessName(m_taskName);
     m_valSetForm->toInitShow();
     ui->stackedWidget->setCurrentWidget(m_valSetForm);
@@ -232,7 +267,7 @@ void MainDlg::on_PB_SystemSet_clicked()
     SetCurrentNavButton(ui->PB_SystemSet);
 }
 
-bool MainDlg::RequireDetectionTask()
+bool MainDlg::RequireSupportedTask()
 {
     if (m_taskName.isEmpty())
     {
@@ -247,12 +282,20 @@ bool MainDlg::RequireDetectionTask()
         ReportError(errorMessage);
         return false;
     }
-    if (!TaskRepository::IsDetection(task))
+    if (!TaskRepository::IsSupportedTrainingTask(task))
     {
         ReportError(QString(u8"当前任务类型暂未打通数据、训练和验证页面"));
         return false;
     }
     return true;
+}
+
+bool MainDlg::CurrentTaskIsYoloE() const
+{
+    TaskDefinition task;
+    QString errorMessage;
+    return !m_taskName.isEmpty() && TaskRepository::LoadTask(m_taskName, &task, &errorMessage) &&
+           TaskRepository::IsYoloE(task);
 }
 
 bool MainDlg::RequireGeneratedDataset()

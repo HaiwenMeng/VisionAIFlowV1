@@ -28,10 +28,18 @@ VAF_APP_MODELS_DIR = $$VAF_ROOT/BINX64/model
 VAF_DEPENDS_DIR = $$VAF_ROOT/BaseLibX64/V4depends
 VAF_OPENCV_DIR = $$VAF_DEPENDS_DIR/Opencv
 VAF_SAM3_DIR = $$VAF_ROOT/LVMs/TrtSAM3Lib
+VAF_SAM2_DIR = F:/QtProject/SamProject/TrtSam2Lib
+VAF_SAM_BASE_DIR = F:/QtProject/SamProject/SamBaseLib
+VAF_SAM2_LIB_DIR = F:/ytprojectv2alln/BINX64_YoloTraingrayV2
 
 INCLUDEPATH += $$PWD \
                $$PWD/TrainForms/DetecForms \
                $$PWD/InferForms/DetecForms \
+               $$PWD/TrainForms/YoloEForms \
+               $$PWD/AnnoForms/YoloEAnnoForm \
+               $$PWD/sam2assist \
+               $$VAF_SAM2_DIR \
+               $$VAF_SAM_BASE_DIR \
                  $$VAF_ROOT/UIProject/BaseAnnoDisp \
                  $$PWD/AnnoForms/SemiAutoAnnoForm \
                  $$VAF_SAM3_DIR \
@@ -67,6 +75,8 @@ SOURCES += \
     renamedlg.cpp \
     nameselectdlg.cpp \
     baseannolegacycanvas.cpp \
+    sam2assist/Sam2LabelCanvasCompat.cpp \
+    AnnoForms/YoloEAnnoForm/YoloeLabelForm.cpp \
     AnnoForms/SemiAutoAnnoForm/baseimageannotatewidget.cpp \
     AnnoForms/SemiAutoAnnoForm/app/MainWindow.cpp \
     AnnoForms/SemiAutoAnnoForm/app/StartupOverlay.cpp \
@@ -87,6 +97,7 @@ SOURCES += \
     $$VAF_SAM3_DIR/third_party/sam3src/infer/sam3infer.cpp \
     TrainForms/DetecForms/traindataform.cpp \
     TrainForms/DetecForms/detecttrainingcontroller.cpp \
+    TrainForms/YoloEForms/yoloetrainform.cpp \
     InferForms/DetecForms/detectioninferencecontroller.cpp \
     AnnoForms/BaseAnnoForm/CommonSetForm.cpp
 
@@ -108,6 +119,8 @@ HEADERS += \
     renamedlg.h \
     nameselectdlg.h \
     baseannolegacycanvas.h \
+    sam2assist/Sam2LabelCanvasCompat.h \
+    AnnoForms/YoloEAnnoForm/YoloeLabelForm.h \
     AnnoForms/SemiAutoAnnoForm/baseimageannotatewidget.h \
     AnnoForms/SemiAutoAnnoForm/app/AppTypes.h \
     AnnoForms/SemiAutoAnnoForm/app/MainWindow.h \
@@ -141,6 +154,7 @@ HEADERS += \
     $$VAF_SAM3_DIR/third_party/sam3src/kernels/process_kernel_warp.hpp \
     TrainForms/DetecForms/traindataform.h \
     TrainForms/DetecForms/detecttrainingcontroller.h \
+    TrainForms/YoloEForms/yoloetrainform.h \
     InferForms/DetecForms/detectioninferencecontroller.h \
     AnnoForms/BaseAnnoForm/CommonSetForm.h
 
@@ -159,6 +173,9 @@ FORMS += \
     AnnoForms/SemiAutoAnnoForm/app/MainWindow.ui \
     TrainForms/DetecForms/traindataform.ui \
     AnnoForms/BaseAnnoForm/CommonSetForm.ui
+FORMS += \
+    AnnoForms/YoloEAnnoForm/YoloeLabelForm.ui \
+    TrainForms/YoloEForms/yoloetrainform.ui
 
 PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                    $$BUILDLIB/PluginApi.lib \
@@ -173,6 +190,8 @@ LIBS += -lVisionAIFlowCore -lPluginApi -lBaseAnnoDisp \
         -L$$VAF_CUDA_QMAKE_ROOT/lib/x64 -lcudart -lcublas \
         -L$$VAF_TORCH_ROOT/lib -ltorch -ltorch_cpu -ltorch_cuda -lc10 -lc10_cuda \
         -L$$VAF_OPENVINO_ROOT/lib -lopenvino -ldelayimp
+LIBS += $$VAF_SAM2_LIB_DIR/TrtSam2Lib.lib \
+        $$VAF_SAM2_LIB_DIR/SamBaseLib.lib
 
 CUDA_SOURCES += \
     $$VAF_SAM3_DIR/third_party/sam3src/common/memory.cu \
@@ -201,6 +220,8 @@ QMAKE_POST_LINK += copy /Y $$VAF_OPENVINO_ROOT_NATIVE\\bin\\openvino.dll $$VAF_B
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\BuildLib\\BaseAnnoDisp.dll $$VAF_BINARY_DIR_NATIVE\\BaseAnnoDisp.dll
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\VisionAIFlowApp\\ResourYolo\\Arial.ttf $$VAF_BINARY_DIR_NATIVE\\Arial.ttf
 QMAKE_POST_LINK += && copy /Y F:\\VisionAIFlowV1\\VisionAIFlowApp\\ResourYolo\\Arial.Unicode.ttf $$VAF_BINARY_DIR_NATIVE\\Arial.Unicode.ttf
+QMAKE_POST_LINK += && copy /Y F:\\ytprojectv2alln\\BINX64_YoloTraingrayV2\\TrtSam2Lib.dll $$VAF_BINARY_DIR_NATIVE\\TrtSam2Lib.dll
+QMAKE_POST_LINK += && copy /Y F:\\ytprojectv2alln\\BINX64_YoloTraingrayV2\\SamBaseLib.dll $$VAF_BINARY_DIR_NATIVE\\SamBaseLib.dll
 
 RESOURCES += \
     YtSRes.qrc \

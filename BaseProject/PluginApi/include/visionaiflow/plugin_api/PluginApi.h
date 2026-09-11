@@ -108,6 +108,13 @@ struct DetectionTrainProgress final
     double dflLoss{0.0};
     int positiveCount{0};
     double meanIou{0.0};
+
+    // Validation metrics are refreshed once after each completed epoch.
+    // Batch/step progress callbacks keep hasValidationMetrics == false.
+    double map50{0.0};
+    double map5095{0.0};
+    bool hasValidationMetrics{false};
+
     QString modelPath;
     QString bestCheckpointPath;
 };

@@ -175,12 +175,19 @@
       <item row="1" column="5" colspan="2">
        <widget class="QTextBrowser" name="plainTextEdit_Log"/>
       </item>
-       <item row="2" column="6">
+      <item row="2" column="6">
        <widget class="QPushButton" name="PB_RunOCR">
         <property name="text">
          <string>执行切图</string>
         </property>
        </widget>
+      </item>
+      <item row="3" column="0" colspan="7">
+       <layout class="QHBoxLayout" name="yoloeReferenceLayout">
+        <item><widget class="QLabel" name="LB_YoloeReference"><property name="text"><string>YOLOE参考标注图:</string></property></widget></item>
+        <item><widget class="QLineEdit" name="LE_YoloeReference"><property name="placeholderText"><string>选择带同名YOLO分割txt的参考图</string></property></widget></item>
+        <item><widget class="QPushButton" name="PB_SelectYoloeReference"><property name="text"><string>选择参考图</string></property></widget></item>
+       </layout>
       </item>
        <item row="2" column="0">
        <widget class="QPushButton" name="PB_AddFiles">

@@ -383,7 +383,7 @@ public:
     //获取Python工作目录
     static QString toGetPythonPath();
     //设置Python工作目录
-    static void toSetPythonPath(QString PythPath);
+    static bool toSetPythonPath(QString PythPath);
 
     //
     //定义几个目录的地址

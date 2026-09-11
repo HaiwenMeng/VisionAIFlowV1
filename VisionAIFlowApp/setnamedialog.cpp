@@ -7,6 +7,7 @@ SetNameDialog::SetNameDialog(QWidget *parent) : QDialog(parent), ui(new Ui::SetN
 {
     ui->setupUi(this);
     ui->CB_TaskType->addItem(QString(u8"目标检测"), QStringLiteral("detection"));
+    ui->CB_TaskType->addItem(QStringLiteral("YOLOE"), QStringLiteral("yoloe"));
     ui->CB_TaskType->addItem(QString(u8"图像分类"), QStringLiteral("classification"));
     ui->CB_TaskType->addItem(QString(u8"实例分割"), QStringLiteral("instance_segmentation"));
     ui->CB_TaskType->addItem(QString(u8"语义分割"), QStringLiteral("semantic_segmentation"));

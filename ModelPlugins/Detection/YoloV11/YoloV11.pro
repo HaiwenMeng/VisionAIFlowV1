@@ -24,18 +24,18 @@ SOURCES += yolov11network.cpp \
            yolov11trainer.cpp \
            yolov11inference.cpp \
            yolov11onnxconverter.cpp \
-           yolov11plugin.cpp\
-           yolov11validator.cpp\
-           yolov11metrics.cpp\
+           yolov11plugin.cpp \
+           yolov11validator.cpp \
+           yolov11metrics.cpp
 
 HEADERS += yolov11network.h \
            yolov11loss.h \
            yolov11trainer.h \
            yolov11inference.h \
            yolov11onnxconverter.h \
-           yolov11plugin.h\
-           yolov11validator.h\
-           yolov11metrics.h\
+           yolov11plugin.h \
+           yolov11validator.h \
+           yolov11metrics.h
 
 DISTFILES += yolov11plugin.json \
              tools/convert_ultralytics_checkpoint.py

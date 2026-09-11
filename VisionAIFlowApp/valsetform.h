@@ -40,6 +40,7 @@ public:
 
 public:
     void toSetProcessName(QString Setname);
+    void setYoloEMode(bool enabled);
     void toInitShow();
 
 private:
@@ -55,6 +56,7 @@ private slots:
     void on_PB_ProVal_clicked();
 
     void on_PB_SelectDetectionModel_clicked();
+    void on_PB_SelectYoloeReference_clicked();
 
     void on_PB_RunReplace_clicked();
 
@@ -79,6 +81,12 @@ public slots:
     void read_data();
     void finished_process();
     void error_process();
+
+private:
+    bool runYoloeInference();
+    bool m_yoloEMode = false;
+    QProcess *m_yoloeProcess = nullptr;
+    QString m_yoloeOutputPath;
 };
 
 #endif // VALSETFORM_H

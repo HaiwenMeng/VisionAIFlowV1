@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <numeric>
-#include <unordered_set>
 
 namespace visionaiflow::yolov11
 {
@@ -106,36 +106,40 @@ void Yolo11Metrics::addImage(const std::vector<Yolo11Detection> &predictions,
                 continue;
             }
 
-            // Ultralytics 8.3.x match_predictions():
-            // 1) sort IoU descending
-            // 2) unique prediction
-            // 3) sort IoU descending again
-            // 4) unique GT
+            // Ultralytics 8.3.x BaseValidator::match_predictions() behavior:
+            //   matches = matches[iou.argsort()[::-1]]
+            //   matches = matches[np.unique(matches[:, 1], return_index=True)[1]]
+            //   matches = matches[np.unique(matches[:, 0], return_index=True)[1]]
+            // np.unique sorts the unique integer key, so use std::map while
+            // retaining the first occurrence from the IoU-descending input.
             std::sort(matches.begin(), matches.end(),
                       [](const Match &a, const Match &b) { return a.iou > b.iou; });
 
-            std::unordered_set<int> usedPredictions;
-            std::vector<Match> predictionUnique;
-            predictionUnique.reserve(matches.size());
+            std::map<int, Match> firstByPrediction;
             for (const Match &match : matches)
             {
-                if (usedPredictions.insert(match.predictionIndex).second)
-                {
-                    predictionUnique.push_back(match);
-                }
+                firstByPrediction.emplace(match.predictionIndex, match);
             }
 
-            std::sort(predictionUnique.begin(), predictionUnique.end(),
-                      [](const Match &a, const Match &b) { return a.iou > b.iou; });
+            std::vector<Match> predictionUnique;
+            predictionUnique.reserve(firstByPrediction.size());
+            for (const auto &[predictionIndex, match] : firstByPrediction)
+            {
+                static_cast<void>(predictionIndex);
+                predictionUnique.push_back(match);
+            }
 
-            std::unordered_set<int> usedTargets;
+            std::map<int, Match> firstByTarget;
             for (const Match &match : predictionUnique)
             {
-                if (usedTargets.insert(match.groundTruthIndex).second)
-                {
-                    imageStats[static_cast<size_t>(match.predictionIndex)]
-                        .correct[static_cast<size_t>(iouIndex)] = 1;
-                }
+                firstByTarget.emplace(match.groundTruthIndex, match);
+            }
+
+            for (const auto &[targetIndex, match] : firstByTarget)
+            {
+                static_cast<void>(targetIndex);
+                imageStats[static_cast<size_t>(match.predictionIndex)]
+                    .correct[static_cast<size_t>(iouIndex)] = 1;
             }
         }
     }

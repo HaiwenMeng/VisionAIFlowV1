@@ -10,6 +10,8 @@ QString ToString(const ProjectType type)
     {
     case ProjectType::Detection:
         return QStringLiteral("detection");
+    case ProjectType::YoloE:
+        return QStringLiteral("yoloe");
     case ProjectType::Classification:
         return QStringLiteral("classification");
     case ProjectType::InstanceSegmentation:
@@ -48,6 +50,7 @@ foundation::Result<ProjectType> ProjectTypeFromString(const QString &value)
 {
     static const QHash<QString, ProjectType> values{
         {QStringLiteral("detection"), ProjectType::Detection},
+        {QStringLiteral("yoloe"), ProjectType::YoloE},
         {QStringLiteral("classification"), ProjectType::Classification},
         {QStringLiteral("instance_segmentation"), ProjectType::InstanceSegmentation},
         {QStringLiteral("semantic_segmentation"), ProjectType::SemanticSegmentation},

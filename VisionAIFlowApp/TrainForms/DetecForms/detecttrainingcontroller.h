@@ -64,8 +64,15 @@ public:
     QVector<DetectionPluginDescriptor> DiscoverPlugins(QStringList *errorMessages) const;
 
 signals:
-    void
-    EpochProgress(int epoch, int step, double loss, double boxLoss, double classLoss, int positives, double meanIou);
+    void EpochProgress(int epoch,
+                       int step,
+                       double loss,
+                       double boxLoss,
+                       double classLoss,
+                       int positives,
+                       double meanIou,
+                       double map50,
+                       double map5095);
     void Completed(const QString &runDirectory,
                    const QString &modelPath,
                    const QString &bestCheckpointPath,

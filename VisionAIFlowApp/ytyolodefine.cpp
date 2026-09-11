@@ -1938,15 +1938,24 @@ void YtYoloDefine::toSetWorkPath(QString WorkPath)
         m_WorkPath = WorkPath;
     }
     QFile file(QString("%1/%2.json").arg(QDir::currentPath()).arg("YtYoloDefine"));
+    QJsonObject jsonObject;
+    if (file.open(QIODevice::ReadOnly))
+    {
+        jsonObject = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+    }
     if (!file.open(QIODevice::WriteOnly))
     {
         qCritical().noquote() << QString(u8"无法保存工作目录配置: %1").arg(file.fileName());
         return;
     }
-    QJsonObject jsonObject;
     jsonObject.insert("WorkPath", m_WorkPath);
     QJsonDocument jsonDoc(jsonObject);
-    file.write(jsonDoc.toJson(QJsonDocument::Indented));
+    const QByteArray data = jsonDoc.toJson(QJsonDocument::Indented);
+    if (file.write(data) != data.size())
+    {
+        qCritical().noquote() << QString(u8"写入工作目录配置失败: %1").arg(file.fileName());
+    }
     file.close();
 }
 
@@ -1975,29 +1984,32 @@ QString YtYoloDefine::toGetPythonPath()
     return m_PythonPath;
 }
 
-void YtYoloDefine::toSetPythonPath(QString PythPath)
+bool YtYoloDefine::toSetPythonPath(QString PythPath)
 {
-    if (m_PythonPath != PythPath)
-    {
-        m_PythonPath = PythPath;
-    }
-    // 强制保存
     QFile file(QString("%1/%2.json").arg(QDir::currentPath()).arg("YtYoloDefine"));
+    QJsonObject jsonObject;
+    if (file.open(QIODevice::ReadOnly))
+    {
+        jsonObject = QJsonDocument::fromJson(file.readAll()).object();
+        file.close();
+    }
     if (!file.open(QIODevice::WriteOnly))
     {
-
-        return;
+        qCritical().noquote() << QString(u8"无法保存Python环境目录配置: %1").arg(file.fileName());
+        return false;
     }
-    // 创建一个JSON对象
-    QJsonObject jsonObject;
-
-    jsonObject.insert("WorkPath", m_WorkPath);
-    jsonObject.insert("PythonPath", m_PythonPath);
-    // 创建一个JSON文档
+    jsonObject.insert("PythonPath", PythPath);
     QJsonDocument jsonDoc(jsonObject);
-    // 写入到文件
-    file.write(jsonDoc.toJson(QJsonDocument::Indented));
+    const QByteArray data = jsonDoc.toJson(QJsonDocument::Indented);
+    if (file.write(data) != data.size())
+    {
+        qCritical().noquote() << QString(u8"写入Python环境目录配置失败: %1").arg(file.fileName());
+        file.close();
+        return false;
+    }
     file.close();
+    m_PythonPath = PythPath;
+    return true;
 }
 
 QString YtYoloDefine::toGetLabelPath()

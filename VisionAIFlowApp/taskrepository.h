@@ -39,6 +39,8 @@ public:
     static QString DisplayType(visionaiflow::domain::ProjectType type);
     static QString DisplayProgress(const QString &progress);
     static bool IsDetection(const TaskDefinition &task);
+    static bool IsYoloE(const TaskDefinition &task);
+    static bool IsSupportedTrainingTask(const TaskDefinition &task);
 
 private:
     static bool EnsureTaskDirectories(const QString &taskName, QString *errorMessage);

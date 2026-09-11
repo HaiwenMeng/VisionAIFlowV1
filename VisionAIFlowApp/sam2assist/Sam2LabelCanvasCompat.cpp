@@ -8,10 +8,11 @@
 #include <exception>
 #include <iostream>
 
+#include <opencv2/imgproc.hpp>
+
 #include "trtsam2lib.h"
 
-Sam2LabelCanvasCompat::Sam2LabelCanvasCompat(QWidget *parent)
-    : QWidget(parent)
+Sam2LabelCanvasCompat::Sam2LabelCanvasCompat(QWidget *parent) : QWidget(parent)
 {
     setMinimumSize(320, 240);
     setMouseTracking(true);
@@ -75,6 +76,13 @@ bool Sam2LabelCanvasCompat::isSamReady() const
     return m_inferenceService && m_inferenceService->isInitialized();
 }
 
+void Sam2LabelCanvasCompat::releaseSam2()
+{
+    m_inferenceService.reset();
+    toClearCandidateRoi();
+    update();
+}
+
 int Sam2LabelCanvasCompat::samTypeIndex() const
 {
     return m_samTypeIndex;
@@ -88,7 +96,6 @@ QString Sam2LabelCanvasCompat::toGetSamModelDir() const
     }
     return m_inferenceService->modelDir();
 }
-
 
 void Sam2LabelCanvasCompat::toSetManualBoxMode(bool enabled)
 {
@@ -243,8 +250,7 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
                 minY = qMin(minY, entry.roiData[i + 1]);
             }
 
-            const QPointF textPos(imageRect.left() + minX * scale + 3.0,
-                                  imageRect.top() + minY * scale + 14.0);
+            const QPointF textPos(imageRect.left() + minX * scale + 3.0, imageRect.top() + minY * scale + 14.0);
             const QString text = QStringLiteral("%1-%2").arg(roiIndex).arg(entry.labelName);
 
             painter.save();
@@ -429,7 +435,7 @@ void Sam2LabelCanvasCompat::wheelEvent(QWheelEvent *event)
         return;
     }
 
-    const QPoint cursorPos = event->pos();
+    const QPoint cursorPos = event->position().toPoint();
     const QPointF imagePosBefore = toMapWidgetToImage(cursorPos);
 
     const qreal step = 1.12;
@@ -523,7 +529,8 @@ void Sam2LabelCanvasCompat::toRunPointPrompt(const QPoint &widgetPoint)
 
     if (!isSamReady())
     {
-        const QString errorMessage = QStringLiteral("SAM point prompt ignored: SAM2 model is not initialized. Manual rectangle mode will be enabled.");
+        const QString errorMessage = QStringLiteral(
+            "SAM point prompt ignored: SAM2 model is not initialized. Manual rectangle mode will be enabled.");
         qWarning() << errorMessage;
         emit SamRuntimeError(errorMessage);
         return;
@@ -535,8 +542,8 @@ void Sam2LabelCanvasCompat::toRunPointPrompt(const QPoint &widgetPoint)
         if (!result.success)
         {
             const QString errorMessage = result.errorMessage.isEmpty()
-                    ? QStringLiteral("SAM point prompt failed with empty error message.")
-                    : result.errorMessage;
+                                             ? QStringLiteral("SAM point prompt failed with empty error message.")
+                                             : result.errorMessage;
             qWarning() << m_inferenceService->displayName() << "point prompt failed:" << errorMessage;
             toClearCandidateRoi();
             update();
@@ -548,7 +555,8 @@ void Sam2LabelCanvasCompat::toRunPointPrompt(const QPoint &widgetPoint)
     }
     catch (const std::exception &ex)
     {
-        const QString errorMessage = QStringLiteral("SAM point prompt exception: %1").arg(QString::fromLocal8Bit(ex.what()));
+        const QString errorMessage =
+            QStringLiteral("SAM point prompt exception: %1").arg(QString::fromLocal8Bit(ex.what()));
         qWarning() << errorMessage;
         toClearCandidateRoi();
         update();
@@ -584,7 +592,8 @@ void Sam2LabelCanvasCompat::toRunRectPrompt(const QPoint &beginPt, const QPoint 
 
     if (!isSamReady())
     {
-        const QString errorMessage = QStringLiteral("SAM box prompt ignored: SAM2 model is not initialized. Manual rectangle mode will be enabled.");
+        const QString errorMessage = QStringLiteral(
+            "SAM box prompt ignored: SAM2 model is not initialized. Manual rectangle mode will be enabled.");
         qWarning() << errorMessage;
         update();
         emit SamRuntimeError(errorMessage);
@@ -597,8 +606,8 @@ void Sam2LabelCanvasCompat::toRunRectPrompt(const QPoint &beginPt, const QPoint 
         if (!result.success)
         {
             const QString errorMessage = result.errorMessage.isEmpty()
-                    ? QStringLiteral("SAM box prompt failed with empty error message.")
-                    : result.errorMessage;
+                                             ? QStringLiteral("SAM box prompt failed with empty error message.")
+                                             : result.errorMessage;
             qWarning() << m_inferenceService->displayName() << "box prompt failed:" << errorMessage;
             toClearCandidateRoi();
             update();
@@ -610,7 +619,8 @@ void Sam2LabelCanvasCompat::toRunRectPrompt(const QPoint &beginPt, const QPoint 
     }
     catch (const std::exception &ex)
     {
-        const QString errorMessage = QStringLiteral("SAM box prompt exception: %1").arg(QString::fromLocal8Bit(ex.what()));
+        const QString errorMessage =
+            QStringLiteral("SAM box prompt exception: %1").arg(QString::fromLocal8Bit(ex.what()));
         qWarning() << errorMessage;
         toClearCandidateRoi();
         update();
@@ -637,10 +647,8 @@ void Sam2LabelCanvasCompat::toCommitManualRect(const QRectF &rect)
     }
 
     QVector<double> roiData;
-    roiData << normalizedRect.left() << normalizedRect.top()
-            << normalizedRect.right() << normalizedRect.top()
-            << normalizedRect.right() << normalizedRect.bottom()
-            << normalizedRect.left() << normalizedRect.bottom();
+    roiData << normalizedRect.left() << normalizedRect.top() << normalizedRect.right() << normalizedRect.top()
+            << normalizedRect.right() << normalizedRect.bottom() << normalizedRect.left() << normalizedRect.bottom();
 
     RoiEntry entry;
     entry.labelName = toResolveCommitLabel();
@@ -657,8 +665,13 @@ void Sam2LabelCanvasCompat::toCommitManualRect(const QRectF &rect)
     update();
 }
 
-void Sam2LabelCanvasCompat::toDrawRoiByImageData(QPainter &painter, const QVector<double> &roiData, const QColor &color,
-                                                  const QRectF &imageRect, qreal scale, bool dashed, int penWidth) const
+void Sam2LabelCanvasCompat::toDrawRoiByImageData(QPainter &painter,
+                                                 const QVector<double> &roiData,
+                                                 const QColor &color,
+                                                 const QRectF &imageRect,
+                                                 qreal scale,
+                                                 bool dashed,
+                                                 int penWidth) const
 {
     if (roiData.size() < 4)
     {
@@ -704,11 +717,16 @@ void Sam2LabelCanvasCompat::toDrawRoiByImageData(QPainter &painter, const QVecto
     painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
     painter.drawRect(QRectF(QPointF(minX, minY), QPointF(maxX, maxY)));
-//    std::cout<<"toDrawRoiByImageData: "<<minX<< ","<<minY<<","<<maxX<<","<<maxY<<std::endl;
+    //    std::cout<<"toDrawRoiByImageData: "<<minX<< ","<<minY<<","<<maxX<<","<<maxY<<std::endl;
 }
 
-void Sam2LabelCanvasCompat::toDrawPolylineByImageData(QPainter &painter, const QVector<QPointF> &points, const QColor &color,
-                                                       const QRectF &imageRect, qreal scale, bool closed, int penWidth) const
+void Sam2LabelCanvasCompat::toDrawPolylineByImageData(QPainter &painter,
+                                                      const QVector<QPointF> &points,
+                                                      const QColor &color,
+                                                      const QRectF &imageRect,
+                                                      qreal scale,
+                                                      bool closed,
+                                                      int penWidth) const
 {
     if (points.size() < 2)
     {
@@ -723,8 +741,7 @@ void Sam2LabelCanvasCompat::toDrawPolylineByImageData(QPainter &painter, const Q
     polygon.reserve(points.size() + (closed ? 1 : 0));
     for (const QPointF &pt : points)
     {
-        polygon.push_back(QPointF(imageRect.left() + pt.x() * scale,
-                                  imageRect.top() + pt.y() * scale));
+        polygon.push_back(QPointF(imageRect.left() + pt.x() * scale, imageRect.top() + pt.y() * scale));
     }
     if (closed)
     {
@@ -732,9 +749,9 @@ void Sam2LabelCanvasCompat::toDrawPolylineByImageData(QPainter &painter, const Q
     }
 
     painter.drawPolyline(polygon);
-//    std::cout<<"toDrawPolylineByImageData: polygon.size():"<<polygon.size();
-//    std::cout<<"toDrawPolylineByImageData: "<<polygon[0].x()<< ","<<polygon[0].y()<<","<<polygon[1].x()<< ","<<polygon[1].y()<<std::endl;
-
+    //    std::cout<<"toDrawPolylineByImageData: polygon.size():"<<polygon.size();
+    //    std::cout<<"toDrawPolylineByImageData: "<<polygon[0].x()<< ","<<polygon[0].y()<<","<<polygon[1].x()<<
+    //    ","<<polygon[1].y()<<std::endl;
 }
 
 void Sam2LabelCanvasCompat::toUpdateMouseImageInfo(const QPoint &widgetPoint)
@@ -768,11 +785,11 @@ QString Sam2LabelCanvasCompat::toImageInfoText() const
     const int y = qBound(0, static_cast<int>(m_lastMouseImagePos.y()), m_currentImage.height() - 1);
     const QColor pixelColor = m_currentImage.pixelColor(x, y);
     text += QStringLiteral(" X:%1 Y:%2 | R:%3 G:%4 B:%5")
-            .arg(x)
-            .arg(y)
-            .arg(pixelColor.red())
-            .arg(pixelColor.green())
-            .arg(pixelColor.blue());
+                .arg(x)
+                .arg(y)
+                .arg(pixelColor.red())
+                .arg(pixelColor.green())
+                .arg(pixelColor.blue());
     return text;
 }
 
@@ -797,10 +814,7 @@ void Sam2LabelCanvasCompat::toDrawImageInfoBar(QPainter &painter) const
     const int textWidth = fm.horizontalAdvance(text);
     const int barWidth = qMin(width() - margin * 2, textWidth + paddingX * 2);
     const int barHeight = fm.height() + paddingY * 2;
-    const QRect barRect(margin,
-                        height() - barHeight - margin,
-                        qMax(0, barWidth),
-                        barHeight);
+    const QRect barRect(margin, height() - barHeight - margin, qMax(0, barWidth), barHeight);
 
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(0, 0, 0, 190));
@@ -821,31 +835,132 @@ void Sam2LabelCanvasCompat::toCommitInferObjects(const SamInferResult &result)
     toClearCandidateRoi();
     for (const SamObjectResult &objectResult : result.objects)
     {
-        QVector<double> commitRoi = objectResult.minRectRoiData.size() >= 8
-                ? objectResult.minRectRoiData
-                : objectResult.roiData;
-        if (commitRoi.size() < 4)
+        const QVector<QPointF> contour = toPostProcessMaskContour(objectResult.maskContour);
+        if (contour.size() < 3)
         {
+            const QString errorMessage = QStringLiteral("SAM2 mask has no valid contour after YOLOE post-processing.");
+            qWarning() << errorMessage;
+            emit SamRuntimeError(errorMessage);
             continue;
+        }
+
+        QVector<double> commitRoi;
+        commitRoi.reserve(contour.size() * 2);
+        for (const QPointF &point : contour)
+        {
+            commitRoi << point.x() << point.y();
         }
 
         RoiEntry entry;
         entry.labelName = objectResult.labelName.isEmpty() ? toResolveCommitLabel() : objectResult.labelName;
-        entry.roiType = LrectangleROI;
+        entry.roiType = LpolygonROI;
         entry.roiData = commitRoi;
-        entry.maskContour = objectResult.maskContour;
+        entry.maskContour = contour;
 
         const int commitKey = m_nextRoiKey;
         m_roiStore.insert(commitKey, entry);
         ++m_nextRoiKey;
 
-        m_candidateMinRectRoi = objectResult.minRectRoiData;
+        m_candidateMinRectRoi.clear();
         m_candidateRoi = commitRoi;
-        m_candidateMaskContour = objectResult.maskContour;
+        m_candidateMaskContour = contour;
 
         emit SigGetDataUpdate(QString::number(commitKey), entry.labelName, entry.roiType);
     }
     update();
+}
+
+QVector<QPointF> Sam2LabelCanvasCompat::toPostProcessMaskContour(const QVector<QPointF> &contour) const
+{
+    QVector<QPointF> result;
+    if (contour.size() < 3 || m_currentImage.isNull())
+    {
+        return result;
+    }
+
+    std::vector<cv::Point> source;
+    source.reserve(static_cast<size_t>(contour.size()));
+    for (const QPointF &point : contour)
+    {
+        source.emplace_back(qRound(point.x()), qRound(point.y()));
+    }
+
+    cv::Mat mask = cv::Mat::zeros(m_currentImage.height(), m_currentImage.width(), CV_8UC1);
+    cv::fillPoly(mask, std::vector<std::vector<cv::Point>>{source}, cv::Scalar(255));
+    const double maskArea = cv::countNonZero(mask);
+    if (maskArea < 10.0)
+    {
+        return result;
+    }
+
+    const int kernelSize = maskArea < 64.0 * 64.0 ? 3 : 7;
+    cv::GaussianBlur(mask, mask, cv::Size(kernelSize, kernelSize), 0.0);
+    cv::threshold(mask, mask, 127.0, 255.0, cv::THRESH_BINARY);
+
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(mask, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+    if (contours.empty())
+    {
+        return result;
+    }
+
+    size_t largestIndex = 0;
+    double largestArea = 0.0;
+    for (size_t index = 0; index < contours.size(); ++index)
+    {
+        const double area = std::abs(cv::contourArea(contours[index]));
+        if (area > largestArea)
+        {
+            largestArea = area;
+            largestIndex = index;
+        }
+    }
+    if (largestArea / maskArea < 0.05)
+    {
+        return result;
+    }
+
+    double ratio = 0.001;
+    if (largestArea < 32.0 * 32.0)
+    {
+        ratio = 0.01;
+    }
+    else if (largestArea < 64.0 * 64.0)
+    {
+        ratio = 0.005;
+    }
+    else if (largestArea < 96.0 * 96.0)
+    {
+        ratio = 0.003;
+    }
+    else if (largestArea < 128.0 * 128.0)
+    {
+        ratio = 0.002;
+    }
+
+    std::vector<cv::Point> simplified;
+    const double perimeter = cv::arcLength(contours[largestIndex], true);
+    while (ratio > 0.00001)
+    {
+        cv::approxPolyDP(contours[largestIndex], simplified, ratio * perimeter, true);
+        if (simplified.size() >= 3)
+        {
+            break;
+        }
+        ratio *= 0.5;
+    }
+    if (simplified.size() < 3)
+    {
+        return result;
+    }
+
+    result.reserve(static_cast<qsizetype>(simplified.size()));
+    for (const cv::Point &point : simplified)
+    {
+        result.append(QPointF(point.x, point.y));
+    }
+    return result;
 }
 
 void Sam2LabelCanvasCompat::toClearCandidateRoi()
@@ -890,8 +1005,7 @@ void Sam2LabelCanvasCompat::toResetViewTransform()
     }
     else
     {
-        m_viewCenterImage = QPointF((m_currentImage.width() - 1) / 2.0,
-                                    (m_currentImage.height() - 1) / 2.0);
+        m_viewCenterImage = QPointF((m_currentImage.width() - 1) / 2.0, (m_currentImage.height() - 1) / 2.0);
     }
 }
 
@@ -925,7 +1039,3 @@ void Sam2LabelCanvasCompat::toClampViewCenter()
     m_viewCenterImage.setX(qBound<qreal>(0.0, m_viewCenterImage.x(), maxX));
     m_viewCenterImage.setY(qBound<qreal>(0.0, m_viewCenterImage.y(), maxY));
 }
-
-
-
-

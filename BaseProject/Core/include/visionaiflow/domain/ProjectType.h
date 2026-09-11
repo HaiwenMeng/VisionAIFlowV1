@@ -9,6 +9,7 @@ namespace visionaiflow::domain
 enum class ProjectType
 {
     Detection,
+    YoloE,
     Classification,
     InstanceSegmentation,
     SemanticSegmentation,

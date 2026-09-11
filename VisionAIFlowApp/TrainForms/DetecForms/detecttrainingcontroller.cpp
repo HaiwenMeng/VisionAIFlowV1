@@ -226,7 +226,11 @@ void DetectTrainingController::PollPluginState()
     }
 
     const auto progress = plugin->progress();
-    if (progress.train.epoch > m_lastReportedEpoch)
+    // mAP is a validation-set metric, so publish one chart point only after
+    // validation for this epoch has completed. This also makes the Loss/IoU
+    // point correspond to the last training step of the same epoch instead of
+    // whichever step happened to be observed by the 100 ms polling timer.
+    if (progress.hasValidationMetrics && progress.train.epoch > m_lastReportedEpoch)
     {
         m_lastReportedEpoch = progress.train.epoch;
         emit EpochProgress(progress.train.epoch,
@@ -235,7 +239,9 @@ void DetectTrainingController::PollPluginState()
                            progress.boxLoss,
                            progress.classLoss,
                            progress.positiveCount,
-                           progress.meanIou);
+                           progress.meanIou,
+                           progress.map50,
+                           progress.map5095);
     }
 
     const TrainState pluginState = plugin->state();

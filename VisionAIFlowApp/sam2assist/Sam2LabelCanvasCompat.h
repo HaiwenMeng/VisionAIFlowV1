@@ -27,12 +27,12 @@ public:
     bool toInitSamModel(int samTypeIndex, const QString &modelDir);
     bool toSwitchSamType(int samTypeIndex);
     bool isSamReady() const;
+    void releaseSam2();
     int samTypeIndex() const;
     QString toGetSamModelDir() const;
     void toSetManualBoxMode(bool enabled);
 
-    template <typename T>
-    void addOverPlayPtr(T *overPlay, const QString &name)
+    template <typename T> void addOverPlayPtr(T *overPlay, const QString &name)
     {
         Q_UNUSED(overPlay);
         Q_UNUSED(name);
@@ -78,14 +78,25 @@ private:
     void toRunPointPrompt(const QPoint &widgetPoint);
     void toRunRectPrompt(const QPoint &beginPt, const QPoint &endPt);
     void toCommitManualRect(const QRectF &rect);
-    void toDrawRoiByImageData(QPainter &painter, const QVector<double> &roiData, const QColor &color,
-                              const QRectF &imageRect, qreal scale, bool dashed, int penWidth = 2) const;
-    void toDrawPolylineByImageData(QPainter &painter, const QVector<QPointF> &points, const QColor &color,
-                                   const QRectF &imageRect, qreal scale, bool closed, int penWidth) const;
+    void toDrawRoiByImageData(QPainter &painter,
+                              const QVector<double> &roiData,
+                              const QColor &color,
+                              const QRectF &imageRect,
+                              qreal scale,
+                              bool dashed,
+                              int penWidth = 2) const;
+    void toDrawPolylineByImageData(QPainter &painter,
+                                   const QVector<QPointF> &points,
+                                   const QColor &color,
+                                   const QRectF &imageRect,
+                                   qreal scale,
+                                   bool closed,
+                                   int penWidth) const;
     void toDrawImageInfoBar(QPainter &painter) const;
     void toUpdateMouseImageInfo(const QPoint &widgetPoint);
     QString toImageInfoText() const;
     void toCommitInferObjects(const SamInferResult &result);
+    QVector<QPointF> toPostProcessMaskContour(const QVector<QPointF> &contour) const;
     void toClearCandidateRoi();
     void toReindexRoiStore();
     QString toResolveCommitLabel() const;
