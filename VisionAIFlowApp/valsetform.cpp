@@ -11,19 +11,14 @@ ValSetForm::ValSetForm(QWidget *parent)
       m_detectionInferenceController(std::make_unique<DetectionInferenceController>(this))
 {
     ui->setupUi(this);
-    ui->ytRoiShowDisp->addOverPlayPtr(&m_OverPlayShow, "set");
-    ui->ytRoiShowDispJson->addOverPlayPtr(&m_JsonOverPlayShow, "set");
-    ui->ytRoiShowDisp->toSetBGColor(QColor(33, 34, 35));
-    ui->ytRoiShowDispJson->toSetBGColor(QColor(33, 34, 35));
+    ui->ytRoiShowInferRest->addOverPlayPtr(&m_OverPlayShow, "set");
+    ui->ytRoiShowVPE->addOverPlayPtr(&m_JsonOverPlayShow, "set");
+    ui->ytRoiShowInferRest->toSetBGColor(QColor(33, 34, 35));
+    ui->ytRoiShowVPE->toSetBGColor(QColor(33, 34, 35));
 }
 
 ValSetForm::~ValSetForm()
 {
-    if (m_yoloeProcess)
-    {
-        m_yoloeProcess->kill();
-        m_yoloeProcess->waitForFinished(3000);
-    }
     if (m_SetProcess)
     {
         m_SetProcess->close();
@@ -38,35 +33,12 @@ void ValSetForm::toSetProcessName(QString Setname)
     m_ProcessName = Setname;
 }
 
-void ValSetForm::setYoloEMode(bool enabled)
-{
-    m_yoloEMode = enabled;
-    ui->LB_YoloeReference->setVisible(enabled);
-    ui->LE_YoloeReference->setVisible(enabled);
-    ui->PB_SelectYoloeReference->setVisible(enabled);
-    if (enabled)
-    {
-        ui->doubleSpinBox->setDecimals(3);
-        ui->doubleSpinBox->setMinimum(0.001);
-        ui->doubleSpinBox->setSingleStep(0.001);
-        ui->doubleSpinBox->setValue(0.01);
-    }
-    else
-    {
-        ui->doubleSpinBox->setDecimals(2);
-        ui->doubleSpinBox->setMinimum(0.0);
-        ui->doubleSpinBox->setSingleStep(0.01);
-        ui->doubleSpinBox->setValue(0.5);
-    }
-}
-
 void ValSetForm::toInitShow()
 {
-    const bool isDetectionTask = !m_yoloEMode && m_DataSetForm->toGetRunIndex() == 0;
+    const bool isDetectionTask = m_DataSetForm->toGetRunIndex() == 0;
     ui->CB_DetectionPlugin->setEnabled(isDetectionTask);
     ui->LE_DetectionModel->setEnabled(isDetectionTask);
     ui->PB_SelectDetectionModel->setEnabled(isDetectionTask);
-    ui->LE_DetectionModel->setEnabled(isDetectionTask || m_yoloEMode);
     //
     QDir temdir;
     temdir.setPath(YtYoloDefine::toGetValuePath() + "/" + m_ProcessName);
@@ -79,9 +51,7 @@ void ValSetForm::toInitShow()
     toLoadCsv();
     RefreshDetectionPlugins();
     ui->LE_DetectionModel->setText(
-        QDir(YtYoloDefine::toGetTrainPath())
-            .filePath(m_ProcessName + (m_yoloEMode ? QStringLiteral("/yoloe/final/yoloe-11s-seg-vp.pt")
-                                                   : QStringLiteral("/detect/train/weights/best.pt"))));
+        QDir(YtYoloDefine::toGetTrainPath()).filePath(m_ProcessName + QStringLiteral("/detect/train/weights/best.pt")));
 }
 
 void ValSetForm::RefreshDetectionPlugins()
@@ -404,12 +374,12 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
     m_GetImage.load(m_Getfilename);
     m_YtRoiLabelSet.toClearData();
     m_YtRoiLabelSetJson.toClearData();
-    ui->ytRoiShowDisp->toSetImage(m_GetImage);
-    ui->ytRoiShowDispJson->toSetImage(m_GetImage);
+    ui->ytRoiShowInferRest->toSetImage(m_GetImage);
+    ui->ytRoiShowVPE->toSetImage(m_GetImage);
     m_OverPlayShow.toClearData();
     m_JsonOverPlayShow.toClearData();
-    ui->ytRoiShowDisp->toUpdateShow();
-    ui->ytRoiShowDispJson->toUpdateShow();
+    ui->ytRoiShowInferRest->toUpdateShow();
+    ui->ytRoiShowVPE->toUpdateShow();
     //
     int getindex = m_Getfilename.lastIndexOf(".");
     if (getindex < 0)
@@ -428,7 +398,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             // 矩形目标识别
             m_YtRoiLabelSet.toLoadDetcTxt(m_Getfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenDetcOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         case 1:
@@ -436,7 +406,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             // OBB识别
             m_YtRoiLabelSet.toLoadObbTxt(m_Getfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenObbOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         case 2:
@@ -444,7 +414,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             // 语义分割
             m_YtRoiLabelSet.toLoadSegTxt(m_Getfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenSegOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         case 3:
@@ -452,7 +422,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             // 分类识别
             m_YtRoiLabelSet.toLoadClassTxt(m_Getfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenClassOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         case 4:
@@ -465,7 +435,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
                 m_OverPlayShow.append(
                     DispTxt(getstr, CMvPoint(0, m_GetImage.height()), QFont("Times", 33, 33), Qt::darkGreen));
             }
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         case 5:
@@ -473,7 +443,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             // 语义分割
             m_YtRoiLabelSet.toLoadFourPosTxt(m_Getfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenSegOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDisp->toUpdateShow();
+            ui->ytRoiShowInferRest->toUpdateShow();
             break;
         }
         default:
@@ -493,7 +463,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             m_YtRoiLabelSetJson.toGenDetcOveplay(m_JsonOverPlayShow,
                                                  m_YtYoloSetPro.m_NameList,
                                                  m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         case 1:
@@ -502,7 +472,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             m_YtRoiLabelSetJson.toGenObbOveplay(m_JsonOverPlayShow,
                                                 m_YtYoloSetPro.m_NameList,
                                                 m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         case 2:
@@ -511,7 +481,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             m_YtRoiLabelSetJson.toGenSegOveplay(m_JsonOverPlayShow,
                                                 m_YtYoloSetPro.m_NameList,
                                                 m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         case 3:
@@ -520,7 +490,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             m_YtRoiLabelSetJson.toGenClassOveplay(m_JsonOverPlayShow,
                                                   m_YtYoloSetPro.m_NameList,
                                                   m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         case 4:
@@ -536,7 +506,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
                                                   QFont("Times", 33, 33),
                                                   Qt::darkGreen));
             }
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         case 5:
@@ -545,7 +515,7 @@ void ValSetForm::on_listWidget_itemSelectionChanged()
             m_YtRoiLabelSetJson.toGenSegOveplay(m_JsonOverPlayShow,
                                                 m_YtYoloSetPro.m_NameList,
                                                 m_YtYoloSetPro.m_ClorDefine);
-            ui->ytRoiShowDispJson->toUpdateShow();
+            ui->ytRoiShowVPE->toUpdateShow();
             break;
         }
         default:
@@ -561,11 +531,6 @@ void ValSetForm::on_PB_ProVal_clicked()
         const QString errorMessage = QString(u8"未设置数据集页面, 无法执行推理");
         AppendLog(errorMessage);
         QMessageBox::critical(this, QString(u8"检测推理失败"), errorMessage);
-        return;
-    }
-    if (m_yoloEMode)
-    {
-        runYoloeInference();
         return;
     }
     if (m_DataSetForm->toGetRunIndex() == 0)
@@ -745,100 +710,6 @@ void ValSetForm::on_PB_SelectDetectionModel_clicked()
         return;
     }
     ui->LE_DetectionModel->setText(modelPath);
-}
-
-void ValSetForm::on_PB_SelectYoloeReference_clicked()
-{
-    const QString path = QFileDialog::getOpenFileName(
-        this,
-        QString(u8"选择YOLOE参考标注图"),
-        QDir(YtYoloDefine::toGetDataPath()).filePath(m_ProcessName + QStringLiteral("/train/images")),
-        QString(u8"图像文件 (*.jpg *.jpeg *.png *.bmp)"));
-    if (!path.isEmpty())
-    {
-        ui->LE_YoloeReference->setText(path);
-    }
-}
-
-bool ValSetForm::runYoloeInference()
-{
-    if (ui->listWidget->currentItem() == nullptr)
-    {
-        QMessageBox::critical(this, QString(u8"YOLOE推理失败"), QString(u8"请选择一张查询图"));
-        return false;
-    }
-    const QString referenceImage = ui->LE_YoloeReference->text().trimmed();
-    const QString referenceLabel = QFileInfo(referenceImage).absolutePath() + QStringLiteral("/../labels/") +
-                                   QFileInfo(referenceImage).completeBaseName() + QStringLiteral(".txt");
-    const QString modelPath = ui->LE_DetectionModel->text().trimmed();
-    const QString pythonExe = QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("python.exe"));
-    const QString script =
-        QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("YOLOE/infer_project_yoloe_seg.py"));
-    m_yoloeOutputPath =
-        QDir(YtYoloDefine::toGetValuePath()).filePath(m_ProcessName + QStringLiteral("/yoloe_result.png"));
-    const QStringList required{pythonExe, script, modelPath, referenceImage, QDir::cleanPath(referenceLabel)};
-    for (const QString &path : required)
-    {
-        if (!QFileInfo::exists(path))
-        {
-            const QString errorMessage = QString(u8"YOLOE推理所需文件不存在: %1").arg(path);
-            AppendLog(errorMessage);
-            QMessageBox::critical(this, QString(u8"YOLOE推理失败"), errorMessage);
-            return false;
-        }
-    }
-    if (m_yoloeProcess != nullptr && m_yoloeProcess->state() != QProcess::NotRunning)
-    {
-        QMessageBox::warning(this, QString(u8"YOLOE推理"), QString(u8"推理正在运行"));
-        return false;
-    }
-    if (m_yoloeProcess == nullptr)
-    {
-        m_yoloeProcess = new QProcess(this);
-        m_yoloeProcess->setProcessChannelMode(QProcess::MergedChannels);
-        connect(m_yoloeProcess,
-                &QProcess::readyReadStandardOutput,
-                this,
-                [this]()
-                {
-                    const QString output = QString::fromUtf8(m_yoloeProcess->readAllStandardOutput()).trimmed();
-                    if (output.contains(QStringLiteral("YOLOE_NO_DETECTION")))
-                    {
-                        m_yoloeNoDetection = true;
-                    }
-                    AppendLog(output);
-                });
-        connect(m_yoloeProcess,
-                qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
-                this,
-                [this](int exitCode, QProcess::ExitStatus exitStatus)
-                {
-                    if (exitStatus != QProcess::NormalExit || exitCode != 0)
-                    {
-                        AppendLog(QString(u8"YOLOE推理失败, 退出码 %1").arg(exitCode));
-                        return;
-                    }
-                    QImage result(m_yoloeOutputPath);
-                    if (result.isNull())
-                    {
-                        AppendLog(QString(u8"YOLOE推理未生成结果图: %1").arg(m_yoloeOutputPath));
-                        return;
-                    }
-                    m_OverPlayShow.toClearData();
-                    ui->ytRoiShowDisp->toSetImage(result);
-                    ui->ytRoiShowDisp->toUpdateShow();
-                    AppendLog(m_yoloeNoDetection ? QString(u8"YOLOE推理完成, 未检出满足阈值的目标")
-                                                 : QString(u8"YOLOE分割推理完成"));
-                });
-    }
-    QStringList arguments;
-    m_yoloeNoDetection = false;
-    arguments << script << QStringLiteral("--model") << modelPath << QStringLiteral("--reference-image")
-              << referenceImage << QStringLiteral("--reference-label") << QDir::cleanPath(referenceLabel)
-              << QStringLiteral("--query-image") << ui->listWidget->currentItem()->text() << QStringLiteral("--output")
-              << m_yoloeOutputPath << QStringLiteral("--conf") << QString::number(ui->doubleSpinBox->value());
-    m_yoloeProcess->start(pythonExe, arguments);
-    return true;
 }
 
 void ValSetForm::on_PB_RunReplace_clicked()

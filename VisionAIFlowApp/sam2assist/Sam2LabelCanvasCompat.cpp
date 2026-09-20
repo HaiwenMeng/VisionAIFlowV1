@@ -1,19 +1,35 @@
 #include "Sam2LabelCanvasCompat.h"
 
 #include <QDebug>
+#include <QPainterPath>
 #include <QPainter>
 #include <QPen>
 #include <QFontMetrics>
+#include <QLineF>
 #include <QWheelEvent>
+#include <cmath>
 #include <exception>
 #include <iostream>
+#include <utility>
 
 #include <opencv2/imgproc.hpp>
+
+namespace
+{
+const QString kIgnoreAddLabel = QStringLiteral("__yoloe_training_ignore__");
+const QString kIgnoreSubtractLabel = QStringLiteral("__yoloe_training_ignore_subtract__");
+
+bool isIgnoreLabel(const QString &labelName)
+{
+    return labelName == kIgnoreAddLabel || labelName == kIgnoreSubtractLabel;
+}
+} // namespace
 
 Sam2LabelCanvasCompat::Sam2LabelCanvasCompat(QWidget *parent) : QWidget(parent)
 {
     setMinimumSize(320, 240);
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);
 }
 
 bool Sam2LabelCanvasCompat::toInitSam2Model(const QString &modelDir)
@@ -98,12 +114,69 @@ QString Sam2LabelCanvasCompat::toGetSamModelDir() const
 void Sam2LabelCanvasCompat::toSetManualBoxMode(bool enabled)
 {
     m_manualBoxMode = enabled;
+    if (enabled)
+    {
+        m_manualPolygonMode = false;
+        m_eraserMode = false;
+        toCancelManualPolygon();
+    }
     toClearCandidateRoi();
     update();
 }
 
+void Sam2LabelCanvasCompat::toSetManualPolygonMode(bool enabled)
+{
+    if (m_manualPolygonMode == enabled)
+    {
+        return;
+    }
+    m_manualPolygonMode = enabled;
+    m_manualBoxMode = false;
+    m_eraserMode = false;
+    m_erasing = false;
+    m_eraserStroke.clear();
+    toCancelManualPolygon();
+    toClearCandidateRoi();
+    update();
+}
+
+void Sam2LabelCanvasCompat::toSetEraserMode(bool enabled)
+{
+    m_eraserMode = enabled;
+    m_erasing = false;
+    m_eraserStroke.clear();
+    if (enabled)
+    {
+        m_manualBoxMode = false;
+        m_manualPolygonMode = false;
+        toCancelManualPolygon();
+        toClearCandidateRoi();
+    }
+    update();
+}
+
+void Sam2LabelCanvasCompat::toSetEraserDiameter(qreal diameter)
+{
+    m_eraserDiameter = qMax<qreal>(2.0, diameter);
+    update();
+}
+
+void Sam2LabelCanvasCompat::toSetIgnoreMaskVisible(bool visible)
+{
+    m_ignoreMaskVisible = visible;
+    update();
+}
+
+bool Sam2LabelCanvasCompat::isManualPolygonMode() const
+{
+    return m_manualPolygonMode;
+}
+
 void Sam2LabelCanvasCompat::toSetImage(const QImage &image)
 {
+    toCancelManualPolygon();
+    m_erasing = false;
+    m_eraserStroke.clear();
     m_currentImage = image;
     m_hasMouseImagePos = false;
     m_lastMouseImagePos = QPointF();
@@ -119,6 +192,9 @@ void Sam2LabelCanvasCompat::toSetImage(const QImage &image)
 void Sam2LabelCanvasCompat::toRemoveAllRoi()
 {
     m_roiStore.clear();
+    toCancelManualPolygon();
+    m_erasing = false;
+    m_eraserStroke.clear();
     toClearCandidateRoi();
     m_nextRoiKey = 1;
     m_highlightedRoiKey = -1;
@@ -158,6 +234,13 @@ void Sam2LabelCanvasCompat::toAppItemLabel(const QString &labelName, int roiType
     entry.labelName = labelName;
     entry.roiType = roiType;
     entry.roiData = roiData;
+    if (roiType == LpolygonROI)
+    {
+        for (int i = 0; i + 1 < roiData.size(); i += 2)
+        {
+            entry.maskContour.append(QPointF(roiData.at(i), roiData.at(i + 1)));
+        }
+    }
 
     m_roiStore.insert(m_nextRoiKey, entry);
     ++m_nextRoiKey;
@@ -223,6 +306,35 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
     const qreal scale = imageRect.width() / qreal(m_currentImage.width());
     painter.drawImage(imageRect, m_currentImage);
 
+    QPainterPath ignoreAddPath;
+    QPainterPath ignoreSubtractPath;
+    for (auto it = m_roiStore.constBegin(); it != m_roiStore.constEnd(); ++it)
+    {
+        const RoiEntry &entry = it.value();
+        if (entry.maskContour.size() < 3)
+        {
+            continue;
+        }
+        if (entry.labelName == kIgnoreAddLabel)
+        {
+            ignoreAddPath = ignoreAddPath.united(toPolygonPath(entry.maskContour, imageRect, scale));
+        }
+        else if (entry.labelName == kIgnoreSubtractLabel)
+        {
+            ignoreSubtractPath = ignoreSubtractPath.united(toPolygonPath(entry.maskContour, imageRect, scale));
+        }
+    }
+    if (m_ignoreMaskVisible && !ignoreAddPath.isEmpty())
+    {
+        const QPainterPath effectiveIgnorePath = ignoreAddPath.subtracted(ignoreSubtractPath);
+        toFillCheckerboardPath(painter, effectiveIgnorePath, QColor(190, 70, 255));
+        painter.save();
+        painter.setPen(QPen(QColor(190, 70, 255), 2));
+        painter.setBrush(Qt::NoBrush);
+        painter.drawPath(effectiveIgnorePath);
+        painter.restore();
+    }
+
     for (auto it = m_roiStore.constBegin(); it != m_roiStore.constEnd(); ++it)
     {
         const int roiIndex = it.key();
@@ -231,8 +343,19 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
         const bool highlighted = roiIndex == m_highlightedRoiKey;
         const QColor drawColor = highlighted ? QColor(255, 230, 0) : lineColor;
         const int penWidth = highlighted ? 4 : 2;
-        toDrawRoiByImageData(painter, entry.roiData, drawColor, imageRect, scale, false, penWidth);
-        if (!entry.maskContour.isEmpty())
+        if (isIgnoreLabel(entry.labelName))
+        {
+            if (m_ignoreMaskVisible && highlighted && !entry.maskContour.isEmpty())
+            {
+                toDrawPolylineByImageData(painter, entry.maskContour, drawColor, imageRect, scale, true, penWidth);
+            }
+            continue;
+        }
+        if (entry.maskContour.isEmpty())
+        {
+            toDrawRoiByImageData(painter, entry.roiData, drawColor, imageRect, scale, false, penWidth);
+        }
+        else
         {
             toDrawPolylineByImageData(painter, entry.maskContour, drawColor, imageRect, scale, true, penWidth);
         }
@@ -277,7 +400,7 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
         toDrawPolylineByImageData(painter, m_candidateMaskContour, QColor(0, 255, 120), imageRect, scale, true, 2);
     }
 
-    if (!m_candidateMinRectRoi.isEmpty())
+    if (m_candidateMaskContour.isEmpty() && !m_candidateMinRectRoi.isEmpty())
     {
         QVector<QPointF> points;
         for (int i = 0; i + 1 < m_candidateMinRectRoi.size(); i += 2)
@@ -287,7 +410,7 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
         toDrawPolylineByImageData(painter, points, QColor(0, 255, 255), imageRect, scale, true, 2);
     }
 
-    if (!m_candidateRoi.isEmpty())
+    if (m_candidateMaskContour.isEmpty() && !m_candidateRoi.isEmpty())
     {
         toDrawRoiByImageData(painter, m_candidateRoi, QColor(255, 215, 0), imageRect, scale, true);
     }
@@ -297,6 +420,45 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
         painter.setPen(QPen(QColor(255, 255, 255), 1, Qt::DashLine));
         painter.setBrush(Qt::NoBrush);
         painter.drawRect(QRectF(m_dragStartPoint, m_dragCurrentPoint).normalized());
+    }
+
+    if (m_manualPolygonMode && !m_manualPolygonPoints.isEmpty())
+    {
+        toDrawPolylineByImageData(painter, m_manualPolygonPoints, QColor(190, 70, 255), imageRect, scale, false, 2);
+        if (m_hasManualPolygonCursor)
+        {
+            const QPointF lastPoint = m_manualPolygonPoints.constLast();
+            const QPointF lastWidget(imageRect.left() + lastPoint.x() * scale, imageRect.top() + lastPoint.y() * scale);
+            const QPointF cursorWidget(imageRect.left() + m_manualPolygonCursor.x() * scale,
+                                       imageRect.top() + m_manualPolygonCursor.y() * scale);
+            painter.setPen(QPen(QColor(190, 70, 255), 1, Qt::DashLine));
+            painter.drawLine(lastWidget, cursorWidget);
+        }
+    }
+
+    if (m_eraserMode && m_hasMouseImagePos)
+    {
+        const QPointF cursor(imageRect.left() + m_lastMouseImagePos.x() * scale,
+                             imageRect.top() + m_lastMouseImagePos.y() * scale);
+        painter.save();
+        painter.setPen(QPen(QColor(255, 255, 255, 220), 1, Qt::DashLine));
+        painter.setBrush(QColor(255, 255, 255, 35));
+        painter.drawEllipse(cursor, m_eraserDiameter * scale * 0.5, m_eraserDiameter * scale * 0.5);
+        if (m_eraserStroke.size() > 1)
+        {
+            QPainterPath strokePath;
+            strokePath.moveTo(imageRect.left() + m_eraserStroke.first().x() * scale,
+                              imageRect.top() + m_eraserStroke.first().y() * scale);
+            for (int i = 1; i < m_eraserStroke.size(); ++i)
+            {
+                strokePath.lineTo(imageRect.left() + m_eraserStroke.at(i).x() * scale,
+                                  imageRect.top() + m_eraserStroke.at(i).y() * scale);
+            }
+            painter.setPen(QPen(QColor(255, 255, 255, 70), m_eraserDiameter * scale, Qt::SolidLine, Qt::RoundCap));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(strokePath);
+        }
+        painter.restore();
     }
 
     toDrawImageInfoBar(painter);
@@ -323,6 +485,33 @@ void Sam2LabelCanvasCompat::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton)
     {
         toUpdateMouseImageInfo(event->pos());
+        if (m_manualPolygonMode)
+        {
+            const QPointF imagePoint = toMapWidgetToImage(event->pos());
+            if (imagePoint.x() >= 0.0)
+            {
+                m_manualPolygonPoints.append(imagePoint);
+                m_manualPolygonCursor = imagePoint;
+                m_hasManualPolygonCursor = true;
+                setFocus(Qt::MouseFocusReason);
+                update();
+            }
+            event->accept();
+            return;
+        }
+        if (m_eraserMode)
+        {
+            const QPointF imagePoint = toMapWidgetToImage(event->pos());
+            if (imagePoint.x() >= 0.0)
+            {
+                m_erasing = true;
+                m_eraserStroke = {imagePoint};
+                setFocus(Qt::MouseFocusReason);
+                update();
+            }
+            event->accept();
+            return;
+        }
         if (m_defaultRoiType == LpointROI && !m_manualBoxMode)
         {
             toRunPointPrompt(event->pos());
@@ -344,6 +533,24 @@ void Sam2LabelCanvasCompat::mousePressEvent(QMouseEvent *event)
 void Sam2LabelCanvasCompat::mouseMoveEvent(QMouseEvent *event)
 {
     toUpdateMouseImageInfo(event->pos());
+    if (m_manualPolygonMode)
+    {
+        const QPointF imagePoint = toMapWidgetToImage(event->pos());
+        m_hasManualPolygonCursor = imagePoint.x() >= 0.0;
+        if (m_hasManualPolygonCursor)
+        {
+            m_manualPolygonCursor = imagePoint;
+        }
+    }
+    if (m_eraserMode && m_erasing)
+    {
+        const QPointF imagePoint = toMapWidgetToImage(event->pos());
+        if (imagePoint.x() >= 0.0 &&
+            (m_eraserStroke.isEmpty() || QLineF(m_eraserStroke.constLast(), imagePoint).length() >= 1.0))
+        {
+            m_eraserStroke.append(imagePoint);
+        }
+    }
     if (m_draggingView)
     {
         const qreal viewScale = toComputeFitScale() * m_zoomFactor;
@@ -382,6 +589,20 @@ void Sam2LabelCanvasCompat::mouseReleaseEvent(QMouseEvent *event)
         return;
     }
 
+    if (event->button() == Qt::LeftButton && m_eraserMode && m_erasing)
+    {
+        m_erasing = false;
+        const QVector<QPointF> stroke = m_eraserStroke;
+        m_eraserStroke.clear();
+        if (!stroke.isEmpty())
+        {
+            emit EraserStrokeCommitted(stroke, m_eraserDiameter);
+        }
+        update();
+        event->accept();
+        return;
+    }
+
     if (event->button() == Qt::LeftButton && m_draggingRectPrompt)
     {
         toUpdateMouseImageInfo(event->pos());
@@ -397,6 +618,12 @@ void Sam2LabelCanvasCompat::mouseReleaseEvent(QMouseEvent *event)
 
 void Sam2LabelCanvasCompat::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton && m_manualPolygonMode)
+    {
+        toCommitManualPolygon();
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::RightButton)
     {
         m_draggingView = false;
@@ -408,6 +635,31 @@ void Sam2LabelCanvasCompat::mouseDoubleClickEvent(QMouseEvent *event)
     }
 
     QWidget::mouseDoubleClickEvent(event);
+}
+
+void Sam2LabelCanvasCompat::keyPressEvent(QKeyEvent *event)
+{
+    if (m_manualPolygonMode && (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter))
+    {
+        toCommitManualPolygon();
+        event->accept();
+        return;
+    }
+    if (m_manualPolygonMode && event->key() == Qt::Key_Escape)
+    {
+        toCancelManualPolygon();
+        update();
+        event->accept();
+        return;
+    }
+    if (m_eraserMode && event->key() == Qt::Key_Escape)
+    {
+        toSetEraserMode(false);
+        emit EraserExitRequested();
+        event->accept();
+        return;
+    }
+    QWidget::keyPressEvent(event);
 }
 
 void Sam2LabelCanvasCompat::leaveEvent(QEvent *event)
@@ -663,6 +915,74 @@ void Sam2LabelCanvasCompat::toCommitManualRect(const QRectF &rect)
     update();
 }
 
+void Sam2LabelCanvasCompat::toCommitManualPolygon()
+{
+    QVector<QPointF> points;
+    points.reserve(m_manualPolygonPoints.size());
+    for (const QPointF &point : std::as_const(m_manualPolygonPoints))
+    {
+        if (points.isEmpty() ||
+            std::hypot(point.x() - points.constLast().x(), point.y() - points.constLast().y()) >= 0.5)
+        {
+            points.append(point);
+        }
+    }
+    if (points.size() > 1 &&
+        std::hypot(points.first().x() - points.constLast().x(), points.first().y() - points.constLast().y()) < 0.5)
+    {
+        points.removeLast();
+    }
+    if (points.size() < 3)
+    {
+        const QString errorMessage = QString(u8"训练忽略区多边形至少需要3个不同顶点");
+        qWarning() << errorMessage;
+        emit ManualPolygonError(errorMessage);
+        return;
+    }
+
+    double twiceArea = 0.0;
+    for (int i = 0; i < points.size(); ++i)
+    {
+        const QPointF &current = points.at(i);
+        const QPointF &next = points.at((i + 1) % points.size());
+        twiceArea += current.x() * next.y() - next.x() * current.y();
+    }
+    if (std::abs(twiceArea) < 2.0)
+    {
+        const QString errorMessage = QString(u8"训练忽略区多边形面积必须大于0");
+        qWarning() << errorMessage;
+        emit ManualPolygonError(errorMessage);
+        return;
+    }
+
+    QVector<double> roiData;
+    roiData.reserve(points.size() * 2);
+    for (const QPointF &point : std::as_const(points))
+    {
+        roiData << point.x() << point.y();
+    }
+
+    RoiEntry entry;
+    entry.labelName = toResolveCommitLabel();
+    entry.roiType = LpolygonROI;
+    entry.roiData = roiData;
+    entry.maskContour = points;
+
+    const int commitKey = m_nextRoiKey;
+    m_roiStore.insert(commitKey, entry);
+    ++m_nextRoiKey;
+    toCancelManualPolygon();
+    emit SigGetDataUpdate(QString::number(commitKey), entry.labelName, entry.roiType);
+    update();
+}
+
+void Sam2LabelCanvasCompat::toCancelManualPolygon()
+{
+    m_manualPolygonPoints.clear();
+    m_manualPolygonCursor = QPointF();
+    m_hasManualPolygonCursor = false;
+}
+
 void Sam2LabelCanvasCompat::toDrawRoiByImageData(QPainter &painter,
                                                  const QVector<double> &roiData,
                                                  const QColor &color,
@@ -750,6 +1070,59 @@ void Sam2LabelCanvasCompat::toDrawPolylineByImageData(QPainter &painter,
     //    std::cout<<"toDrawPolylineByImageData: polygon.size():"<<polygon.size();
     //    std::cout<<"toDrawPolylineByImageData: "<<polygon[0].x()<< ","<<polygon[0].y()<<","<<polygon[1].x()<<
     //    ","<<polygon[1].y()<<std::endl;
+}
+
+QPainterPath
+Sam2LabelCanvasCompat::toPolygonPath(const QVector<QPointF> &points, const QRectF &imageRect, qreal scale) const
+{
+    if (points.size() < 3)
+    {
+        return QPainterPath();
+    }
+
+    QPolygonF polygon;
+    polygon.reserve(points.size());
+    for (const QPointF &point : points)
+    {
+        polygon.append(QPointF(imageRect.left() + point.x() * scale, imageRect.top() + point.y() * scale));
+    }
+
+    QPainterPath path;
+    path.addPolygon(polygon);
+    path.closeSubpath();
+    return path;
+}
+
+void Sam2LabelCanvasCompat::toFillCheckerboardPath(QPainter &painter,
+                                                   const QPainterPath &path,
+                                                   const QColor &color) const
+{
+    if (path.isEmpty())
+    {
+        return;
+    }
+
+    constexpr int tileSize = 12;
+    const QRect bounds = path.boundingRect().toAlignedRect();
+    const int beginX = (bounds.left() / tileSize) * tileSize;
+    const int beginY = (bounds.top() / tileSize) * tileSize;
+    QColor firstColor = color;
+    QColor secondColor = color.darker(145);
+    firstColor.setAlpha(58);
+    secondColor.setAlpha(25);
+
+    painter.save();
+    painter.setClipPath(path, Qt::IntersectClip);
+    painter.setPen(Qt::NoPen);
+    for (int y = beginY; y <= bounds.bottom(); y += tileSize)
+    {
+        for (int x = beginX; x <= bounds.right(); x += tileSize)
+        {
+            const bool firstTile = ((x / tileSize) + (y / tileSize)) % 2 == 0;
+            painter.fillRect(QRect(x, y, tileSize, tileSize), firstTile ? firstColor : secondColor);
+        }
+    }
+    painter.restore();
 }
 
 void Sam2LabelCanvasCompat::toUpdateMouseImageInfo(const QPoint &widgetPoint)

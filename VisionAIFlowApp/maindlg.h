@@ -19,6 +19,7 @@ class CommonSetForm;
 class MainWindow;
 class YoloeLabelForm;
 class YoloeTrainForm;
+class YoloeValForm;
 class SystemForm;
 
 class MainDlg final : public QWidget
@@ -60,6 +61,7 @@ private:
     MainWindow *m_semiAutoAnnoForm = nullptr;
     YoloeLabelForm *m_yoloeLabelForm = nullptr;
     YoloeTrainForm *m_yoloeTrainForm;
+    YoloeValForm *m_yoloeValForm;
     SystemForm *m_systemForm;
     QString m_taskName;
 };

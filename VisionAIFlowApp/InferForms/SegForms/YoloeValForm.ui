@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>YoloeValForm</class>
+ <widget class="QWidget" name="YoloeValForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1120</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>YOLOE推理</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout" rowstretch="0,0,6,1">
+     <item row="0" column="0">
+      <widget class="QLabel" name="LB_Title">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>54</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">font: 18pt &quot;微软雅黑&quot;;</string>
+       </property>
+       <property name="text">
+        <string>YOLOE分割推理测试</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <layout class="QHBoxLayout" name="backboneLayout">
+       <item>
+        <widget class="QLabel" name="LB_Backbone">
+         <property name="text">
+          <string>YOLOE Backbone:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="LE_Backbone">
+         <property name="placeholderText">
+          <string>选择YOLOE分割模型 .pt</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="PB_SelectBackbone">
+         <property name="text">
+          <string>选择Backbone</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="LB_Confidence">
+         <property name="text">
+          <string>置信度:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="DSB_Confidence">
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>0.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.010000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.250000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="LB_Iou">
+         <property name="text">
+          <string>IOU:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="DSB_Iou">
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="minimum">
+          <double>0.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>1.000000000000000</double>
+         </property>
+         <property name="singleStep">
+          <double>0.010000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.700000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>数量上限</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="spinBox_MaxDetNum">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <number>1500</number>
+         </property>
+         <property name="value">
+          <number>500</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="2" column="0">
+      <layout class="QHBoxLayout" name="contentLayout" stretch="0,4">
+       <item>
+        <layout class="QVBoxLayout" name="imageListLayout">
+         <item>
+          <widget class="QLabel" name="LB_ImageList">
+           <property name="text">
+            <string>待推理图像列表</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListWidget" name="listWidget"/>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="imageListButtonLayout">
+           <item>
+            <widget class="QPushButton" name="PB_AddFiles">
+             <property name="text">
+              <string>添加图像</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="PB_Clear">
+             <property name="text">
+              <string>清空列表</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QTabWidget" name="TW_InferMode">
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="tabVpe">
+          <attribute name="title">
+           <string>VPE视觉提示测试</string>
+          </attribute>
+          <layout class="QHBoxLayout" name="vpePageLayout" stretch="1,1">
+           <item>
+            <layout class="QVBoxLayout" name="templateLayout" stretch="0,4,0">
+             <item>
+              <widget class="QLabel" name="LB_Template">
+               <property name="text">
+                <string>VPE模板图, 请手动画矩形框</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowVPE" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>320</width>
+                 <height>260</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="templateButtonLayout">
+               <item>
+                <widget class="QPushButton" name="pushButton_setTemlateImg">
+                 <property name="text">
+                  <string>设为模板图</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="PB_OpenVPEImg">
+                 <property name="text">
+                  <string>选择模板图</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton_GenVPE">
+                 <property name="text">
+                  <string>生成VPE</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton_DeleteVPE">
+                 <property name="text">
+                  <string>清除VPE</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="resultLayout" stretch="0,4,0">
+             <item>
+              <widget class="QLabel" name="LB_Result">
+               <property name="text">
+                <string>VPE推理结果</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowInferRest" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>320</width>
+                 <height>260</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="vpeInferenceButtonLayout">
+               <item>
+                <widget class="QPushButton" name="PB_ProValOne">
+                 <property name="text">
+                  <string>使用VPE单图推理</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="PB_ProValAll">
+                 <property name="text">
+                  <string>使用VPE批量推理</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tabBackbone">
+          <attribute name="title">
+           <string>Backbone分割测试</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="backbonePageLayout" stretch="0,4,0">
+           <item>
+            <layout class="QHBoxLayout" name="backbonePromptLayout">
+             <item>
+              <widget class="QLabel" name="LB_BackbonePrompt">
+               <property name="text">
+                <string>前景提示词:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="LE_BackbonePrompt">
+               <property name="placeholderText">
+                <string>请输入单个前景类别描述</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="BaseAnnoLegacyCanvas" name="ytRoiShowBackboneRest" native="true">
+             <property name="minimumSize">
+              <size>
+               <width>640</width>
+               <height>260</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="backboneInferenceButtonLayout">
+             <item>
+              <widget class="QPushButton" name="PB_ProBackboneOne">
+               <property name="text">
+                <string>使用文本提示单图推理</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="PB_ProBackboneAll">
+               <property name="text">
+                <string>使用文本提示批量推理</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="3" column="0">
+      <widget class="QTextBrowser" name="plainTextEdit_Log">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>150</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>BaseAnnoLegacyCanvas</class>
+   <extends>QWidget</extends>
+   <header>baseannolegacycanvas.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

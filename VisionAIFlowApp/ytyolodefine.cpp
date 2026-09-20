@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QTextCodec>
+#include <cmath>
 #include "opencv2/opencv.hpp"
 
 CMvRect toGetPointS(QVector<CMvPoint> GetPos)
@@ -48,7 +49,7 @@ void YtRoiLabelSet::toSaveJson(QString Path)
     {
         return;
     }
-    if (m_SetLabeset.size() < 1)
+    if (m_SetLabeset.isEmpty() && m_SampleRole != SampleRole::Background)
     {
         QFile::remove(QString("%1/%2.json").arg(Path).arg(m_imagePath.left(getindex)));
         return;
@@ -71,6 +72,11 @@ void YtRoiLabelSet::toSaveJson(QString Path)
         QJsonObject tjsonObject;
         tjsonObject.insert("shape_type", temp.shape_type);
         tjsonObject.insert("label", temp.Name);
+        tjsonObject.insert("training_role", temp.isTrainingIgnored() ? "ignore" : "target");
+        if (temp.isTrainingIgnored())
+        {
+            tjsonObject.insert("mask_operation", temp.isIgnoreSubtract() ? "subtract" : "add");
+        }
         if (temp.shape_type == "rotation")
         {
             CMvRotatedRect temdat;
@@ -92,6 +98,7 @@ void YtRoiLabelSet::toSaveJson(QString Path)
         getlist.append(tjsonObject);
     }
     jsonObject.insert("shapes", getlist);
+    jsonObject.insert("sample_role", m_SampleRole == SampleRole::Background ? "background" : "labeled");
 
     //
     jsonObject.insert("imagePath", m_imagePath);
@@ -109,6 +116,7 @@ void YtRoiLabelSet::toLoadJson(QString Path)
 {
     m_NameSetLis.clear();
     m_SetLabeset.clear();
+    m_SampleRole = SampleRole::Labeled;
     // 读取文件到QByteArray
     int getindex = m_imagePath.lastIndexOf(".");
     if (getindex < 0)
@@ -136,6 +144,10 @@ void YtRoiLabelSet::toLoadJson(QString Path)
     }
     //
     QJsonObject jsonObject = jsonDoc.object();
+    if (jsonObject["sample_role"].toString() == "background")
+    {
+        m_SampleRole = SampleRole::Background;
+    }
     //
     //
 
@@ -155,9 +167,15 @@ void YtRoiLabelSet::toLoadJson(QString Path)
 
         QString shape = tjsonObject["shape_type"].toString();
         QString LabelName = tjsonObject["label"].toString();
+        const bool isIgnore = tjsonObject["training_role"].toString() == "ignore";
+        const bool isIgnoreSubtract = isIgnore && tjsonObject["mask_operation"].toString() == "subtract";
+        if (!isIgnore && LabelName.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
+        {
+            m_SampleRole = SampleRole::Background;
+        }
         double direction = tjsonObject["direction"].toDouble();
         QJsonArray pointss = tjsonObject["points"].toArray();
-        if (!m_NameSetLis.contains(LabelName))
+        if (!isIgnore && !LabelName.isEmpty() && !m_NameSetLis.contains(LabelName))
         {
             m_NameSetLis << LabelName;
         }
@@ -175,7 +193,9 @@ void YtRoiLabelSet::toLoadJson(QString Path)
         // qDebug()<<i<<shape<<tempoints.size()<<direction<<"toInitData";
         if (temset.toInitData(LabelName, shape, tempoints, direction))
         {
-            //
+            temset.trainingRole = isIgnore ? LabelSet::TrainingRole::Ignore : LabelSet::TrainingRole::Target;
+            temset.ignoreOperation =
+                isIgnoreSubtract ? LabelSet::IgnoreOperation::Subtract : LabelSet::IgnoreOperation::Add;
             m_SetLabeset.append(temset);
         }
     }
@@ -185,6 +205,7 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
 {
     m_NameSetLis.clear();
     m_SetLabeset.clear();
+    m_SampleRole = SampleRole::Labeled;
     // 读取文件到QByteArray
 
     QFile file(FileName);
@@ -205,6 +226,10 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
     }
     //
     QJsonObject jsonObject = jsonDoc.object();
+    if (jsonObject["sample_role"].toString() == "background")
+    {
+        m_SampleRole = SampleRole::Background;
+    }
     //
     //
 
@@ -224,9 +249,15 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
 
         QString shape = tjsonObject["shape_type"].toString();
         QString LabelName = tjsonObject["label"].toString();
+        const bool isIgnore = tjsonObject["training_role"].toString() == "ignore";
+        const bool isIgnoreSubtract = isIgnore && tjsonObject["mask_operation"].toString() == "subtract";
+        if (!isIgnore && LabelName.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
+        {
+            m_SampleRole = SampleRole::Background;
+        }
         double direction = tjsonObject["direction"].toDouble();
         QJsonArray pointss = tjsonObject["points"].toArray();
-        if (!m_NameSetLis.contains(LabelName))
+        if (!isIgnore && !LabelName.isEmpty() && !m_NameSetLis.contains(LabelName))
         {
             m_NameSetLis << LabelName;
         }
@@ -244,7 +275,9 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
         // qDebug()<<i<<shape<<tempoints.size()<<direction<<"toInitData";
         if (temset.toInitData(LabelName, shape, tempoints, direction))
         {
-            //
+            temset.trainingRole = isIgnore ? LabelSet::TrainingRole::Ignore : LabelSet::TrainingRole::Target;
+            temset.ignoreOperation =
+                isIgnoreSubtract ? LabelSet::IgnoreOperation::Subtract : LabelSet::IgnoreOperation::Add;
             m_SetLabeset.append(temset);
         }
     }
@@ -253,7 +286,7 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
 void YtRoiLabelSet::toAppendData(LabelSet LabelName)
 {
     m_SetLabeset.append(LabelName);
-    if (!m_NameSetLis.contains(LabelName.Name))
+    if (!LabelName.isTrainingIgnored() && !LabelName.Name.isEmpty() && !m_NameSetLis.contains(LabelName.Name))
     {
         m_NameSetLis << LabelName.Name;
     }
@@ -262,7 +295,7 @@ void YtRoiLabelSet::toAppendData(LabelSet LabelName)
 void YtRoiLabelSet::toInserData(LabelSet LabelName, int index)
 {
     m_SetLabeset.insert(index, LabelName);
-    if (!m_NameSetLis.contains(LabelName.Name))
+    if (!LabelName.isTrainingIgnored() && !LabelName.Name.isEmpty() && !m_NameSetLis.contains(LabelName.Name))
     {
         m_NameSetLis << LabelName.Name;
     }
@@ -281,7 +314,8 @@ void YtRoiLabelSet::toModify(LabelSet LabelName, int setindex, bool ischangename
 
         for (int i = 0; i < m_SetLabeset.size(); i++)
         {
-            if (!m_NameSetLis.contains(m_SetLabeset.at(i).Name))
+            if (!m_SetLabeset.at(i).isTrainingIgnored() && !m_SetLabeset.at(i).Name.isEmpty() &&
+                !m_NameSetLis.contains(m_SetLabeset.at(i).Name))
             {
                 m_NameSetLis << m_SetLabeset.at(i).Name;
             }
@@ -296,7 +330,8 @@ void YtRoiLabelSet::toReMoveIndex(int setindex)
 
     for (int i = 0; i < m_SetLabeset.size(); i++)
     {
-        if (!m_NameSetLis.contains(m_SetLabeset.at(i).Name))
+        if (!m_SetLabeset.at(i).isTrainingIgnored() && !m_SetLabeset.at(i).Name.isEmpty() &&
+            !m_NameSetLis.contains(m_SetLabeset.at(i).Name))
         {
             m_NameSetLis << m_SetLabeset.at(i).Name;
         }
@@ -307,6 +342,124 @@ void YtRoiLabelSet::toClearData()
 {
     m_SetLabeset.clear();
     m_NameSetLis.clear();
+    m_SampleRole = SampleRole::Labeled;
+}
+
+bool YtRoiLabelSet::isBackgroundSample() const
+{
+    return m_SampleRole == SampleRole::Background;
+}
+
+int YtRoiLabelSet::targetCount(const QVector<QString> &nameList) const
+{
+    int count = 0;
+    for (LabelSet label : m_SetLabeset)
+    {
+        if (!label.isTrainingIgnored() && nameList.contains(label.Name) &&
+            label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+static bool
+saveIgnorePolygons(const YtRoiLabelSet &labelSet, const QString &filename, bool subtract, QString *errorMessage)
+{
+    if (labelSet.m_imWidth <= 0 || labelSet.m_imHight <= 0)
+    {
+        if (errorMessage)
+        {
+            *errorMessage = QString(u8"忽略区图像尺寸无效: %1 x %2").arg(labelSet.m_imWidth).arg(labelSet.m_imHight);
+        }
+        return false;
+    }
+
+    QStringList lines;
+    for (LabelSet label : labelSet.m_SetLabeset)
+    {
+        if (!label.isTrainingIgnored() || label.isIgnoreSubtract() != subtract)
+        {
+            continue;
+        }
+        if (label.toGetRoiType() != LabelSet::LpolygonROI)
+        {
+            if (errorMessage)
+            {
+                *errorMessage = QString(u8"训练忽略区必须是多边形: %1").arg(filename);
+            }
+            return false;
+        }
+        const QVector<QPointF> points = label.toGetPoints();
+        if (points.size() < 3)
+        {
+            if (errorMessage)
+            {
+                *errorMessage = QString(u8"训练忽略区至少需要3个点: %1").arg(filename);
+            }
+            return false;
+        }
+        QStringList values;
+        values.reserve(points.size() * 2);
+        double twiceArea = 0.0;
+        for (const QPointF &point : points)
+        {
+            if (!std::isfinite(point.x()) || !std::isfinite(point.y()) || point.x() < 0.0 || point.y() < 0.0 ||
+                point.x() >= labelSet.m_imWidth || point.y() >= labelSet.m_imHight)
+            {
+                if (errorMessage)
+                {
+                    *errorMessage = QString(u8"训练忽略区坐标超出图像范围: %1").arg(filename);
+                }
+                return false;
+            }
+            values.append(QString::number(point.x() / labelSet.m_imWidth, 'f', 6));
+            values.append(QString::number(point.y() / labelSet.m_imHight, 'f', 6));
+        }
+        for (int i = 0; i < points.size(); ++i)
+        {
+            const QPointF &current = points.at(i);
+            const QPointF &next = points.at((i + 1) % points.size());
+            twiceArea += current.x() * next.y() - next.x() * current.y();
+        }
+        if (std::abs(twiceArea) <= 0.0)
+        {
+            if (errorMessage)
+            {
+                *errorMessage = QString(u8"训练忽略区多边形面积必须大于0: %1").arg(filename);
+            }
+            return false;
+        }
+        lines.append(values.join(' '));
+    }
+
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        if (errorMessage)
+        {
+            *errorMessage = QString(u8"无法写入忽略区标签: %1, %2").arg(filename, file.errorString());
+        }
+        return false;
+    }
+    QTextStream stream(&file);
+    for (const QString &line : lines)
+    {
+        stream << line << '\n';
+    }
+    file.close();
+    return true;
+}
+
+bool YtRoiLabelSet::toSaveIgnoreSegTxt(const QString &filename, QString *errorMessage) const
+{
+    return saveIgnorePolygons(*this, filename, false, errorMessage);
+}
+
+bool YtRoiLabelSet::toSaveIgnoreSubtractSegTxt(const QString &filename, QString *errorMessage) const
+{
+    return saveIgnorePolygons(*this, filename, true, errorMessage);
 }
 
 void YtRoiLabelSet::toMovePos(int xPos, int yPos)
@@ -422,6 +575,10 @@ void YtRoiLabelSet::toSaveDetcTxt(QString Path, QVector<QString> NameList, QSize
     {
         // 在这里逐行数据书写
         LabelSet temp = m_SetLabeset.at(i);
+        if (temp.isTrainingIgnored())
+        {
+            continue;
+        }
         int GetIndex = NameList.indexOf(temp.Name);
         if (GetIndex < 0)
         {
@@ -1044,6 +1201,10 @@ void YtRoiLabelSet::toSaveSegTxt(QString Path, QVector<QString> NameList, QSize 
     {
         // 在这里逐行数据书写
         LabelSet temp = m_SetLabeset.at(i);
+        if (temp.isTrainingIgnored())
+        {
+            continue;
+        }
         int GetIndex = NameList.indexOf(temp.Name);
         qDebug() << GetIndex << "YtRoiLabelSet::toSaveSegTxt PP" << i << NameList << temp.Name;
         if (GetIndex < 0)
@@ -1128,13 +1289,13 @@ void YtRoiLabelSet::toSaveSegTxt(QString Path, QVector<QString> NameList, QSize 
                     temstr = QString::asprintf("%d %1.6f %1.6f",
                                                GetIndex,
                                                temdata.points[i].x / m_imWidth,
-                                               temdata.points[i].y / m_imWidth);
+                                               temdata.points[i].y / m_imHight);
                 }
                 else
                 {
                     temstr.append(QString(" %1 %2")
                                       .arg(QString::number(temdata.points[i].x / m_imWidth, 'f', 6))
-                                      .arg(QString::number(temdata.points[i].y / m_imWidth, 'f', 6)));
+                                      .arg(QString::number(temdata.points[i].y / m_imHight, 'f', 6)));
                 }
             }
 
@@ -1296,14 +1457,22 @@ void YtRoiLabelSet::toGenSegOveplay(YtSetShowtObj &setshow,
 
 void YtRoiLabelSet::toLoadSegTxt(QString filename, QSize imsize, QVector<QString> NameList)
 {
-    qDebug() << "toLoadDetcTxt";
     int getindex = filename.lastIndexOf(".");
     if (getindex < 0)
     {
         return;
     }
+
+    toLoadSegTxtFile(QString("%1.txt").arg(filename.left(getindex)), QFileInfo(filename).fileName(), imsize, NameList);
+}
+
+void YtRoiLabelSet::toLoadSegTxtFile(QString labelFilename,
+                                     QString imageFilename,
+                                     QSize imsize,
+                                     QVector<QString> NameList)
+{
     toClearData();
-    QFile file(QString("%1.txt").arg(filename.left(getindex)));
+    QFile file(labelFilename);
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
@@ -1311,8 +1480,7 @@ void YtRoiLabelSet::toLoadSegTxt(QString filename, QSize imsize, QVector<QString
     }
     //
     toSetImSize(imsize);
-    QFileInfo temi(filename);
-    toSetFileName(temi.fileName());
+    toSetFileName(imageFilename);
 
     QTextStream in(&file);
     QStringList Getlist;
@@ -2141,8 +2309,8 @@ void YtYoloDefine::toSaveSetting(QString WorkingPath)
 
 void YtYoloDefine::toProFontData()
 {
-    const QString fontDirectory = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
-        + "/AppData/Roaming/Ultralytics";
+    const QString fontDirectory =
+        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/AppData/Roaming/Ultralytics";
     const QDir directory(fontDirectory);
     if (!directory.exists() && !QDir().mkpath(fontDirectory))
     {
@@ -2150,7 +2318,7 @@ void YtYoloDefine::toProFontData()
         return;
     }
 
-    const QStringList fontNames = { "Arial.ttf", "Arial.Unicode.ttf" };
+    const QStringList fontNames = {"Arial.ttf", "Arial.Unicode.ttf"};
     for (const QString &fontName : fontNames)
     {
         const QString destinationPath = directory.filePath(fontName);
@@ -2402,7 +2570,10 @@ QString ProTrainData::toGetCmd()
 QString ProTrainData::toGetTrainCmd(QString processName, QString PretrainedModelPath)
 {
     QStringList protask;
-    protask << "detect" << "obb" << "segment" << "classify";
+    protask << "detect"
+            << "obb"
+            << "segment"
+            << "classify";
     QVector<QStringList> ProtrainMode;
     ProtrainMode << QStringList() << QStringList() << QStringList() << QStringList();
     //    Ytn,           //正矩形目标识别   0
@@ -2411,12 +2582,32 @@ QString ProTrainData::toGetTrainCmd(QString processName, QString PretrainedModel
     //    Ytl,          //语义分割      2
     //    Ytx,          //语义分割      2
 
-    ProtrainMode[0] << "yolo11n.pt" << "yolo11s.pt" << "yolo11m.pt" << "yolo11l.pt" << "yolo11x.pt"
-                    << "yolo11n-grayscale.pt" << "yolov5nu.pt" << "yolov6.yaml" << "yolov8n.pt" << "rtdetr-l.pt"
+    ProtrainMode[0] << "yolo11n.pt"
+                    << "yolo11s.pt"
+                    << "yolo11m.pt"
+                    << "yolo11l.pt"
+                    << "yolo11x.pt"
+                    << "yolo11n-grayscale.pt"
+                    << "yolov5nu.pt"
+                    << "yolov6.yaml"
+                    << "yolov8n.pt"
+                    << "rtdetr-l.pt"
                     << "yolo12n.pt";
-    ProtrainMode[1] << "yolo11n-obb.pt" << "yolo11s-obb.pt" << "yolo11m-obb.pt" << "yolo11l-obb.pt" << "yolo11x-obb.pt";
-    ProtrainMode[2] << "yolo11n-seg.pt" << "yolo11s-seg.pt" << "yolo11m-seg.pt" << "yolo11l-seg.pt" << "yolo11x-seg.pt";
-    ProtrainMode[3] << "yolo11n-cls.pt" << "yolo11s-cls.pt" << "yolo11m-cls.pt" << "yolo11l-cls.pt" << "yolo11x-cls.pt";
+    ProtrainMode[1] << "yolo11n-obb.pt"
+                    << "yolo11s-obb.pt"
+                    << "yolo11m-obb.pt"
+                    << "yolo11l-obb.pt"
+                    << "yolo11x-obb.pt";
+    ProtrainMode[2] << "yolo11n-seg.pt"
+                    << "yolo11s-seg.pt"
+                    << "yolo11m-seg.pt"
+                    << "yolo11l-seg.pt"
+                    << "yolo11x-seg.pt";
+    ProtrainMode[3] << "yolo11n-cls.pt"
+                    << "yolo11s-cls.pt"
+                    << "yolo11m-cls.pt"
+                    << "yolo11l-cls.pt"
+                    << "yolo11x-cls.pt";
 
     if (m_ModelSize >= ProtrainMode[m_TaskType].size())
     {
@@ -2480,7 +2671,10 @@ QString ProTrainData::toGetTrainCmd(QString processName, QString PretrainedModel
 QString ProTrainData::toGeExportCmd(QString processName)
 {
     QStringList protask;
-    protask << "detect" << "obb" << "segment" << "classify";
+    protask << "detect"
+            << "obb"
+            << "segment"
+            << "classify";
     //    QString cmdDir=QString("%1/python.exe %2/Scripts/yolo.exe export model=%3/%4/train/weights/best.pt format=onnx
     //    opset=12\r\n")
     //            .arg(YtYoloDefine::toGetPythonPath())//1 运行目录
@@ -2521,7 +2715,10 @@ QString ProTrainData::toGeExportCmd(QString processName)
 QString ProTrainData::toGeExportOpenVinoInt8Cmd(QString processName)
 {
     QStringList protask;
-    protask << "detect" << "obb" << "segment" << "classify";
+    protask << "detect"
+            << "obb"
+            << "segment"
+            << "classify";
     //    QString cmdDir=QString("%1/python.exe %2/Scripts/yolo.exe export model=%3/%4/train/weights/best.pt format=onnx
     //    opset=12\r\n")
     //            .arg(YtYoloDefine::toGetPythonPath())//1 运行目录
@@ -2583,7 +2780,10 @@ bool ProTrainData::IsJsonHasLabel(QString JsonPath, QString LabelName)
 QString ProTrainData::toGeExportCmdBatch(QString processName, int BatchSize)
 {
     QStringList protask;
-    protask << "detect" << "obb" << "segment" << "classify";
+    protask << "detect"
+            << "obb"
+            << "segment"
+            << "classify";
     //    QString cmdDir=QString("%1/python.exe %2/Scripts/yolo.exe export model=%3/%4/train/weights/best.pt format=onnx
     //    opset=12\r\n")
     //            .arg(YtYoloDefine::toGetPythonPath())//1 运行目录
@@ -2627,7 +2827,10 @@ QString ProTrainData::toGetQuantCmd(QString processName)
     QString QauntDataFolder =
         QFileDialog::getExistingDirectory(nullptr, u8"选择量化数据文件夹", YtYoloDefine::toGetLabelPath());
     QStringList protask;
-    protask << "detect" << "obb" << "segment" << "classify";
+    protask << "detect"
+            << "obb"
+            << "segment"
+            << "classify";
     QString cmdDir =
         QString("%1/python.exe %2/Scripts/yolo.exe export model=%3/%4/train/weights/best.pt format=onnx opset=12\r\n")
             .arg(YtYoloDefine::toGetPythonPath()) // 1 运行目录

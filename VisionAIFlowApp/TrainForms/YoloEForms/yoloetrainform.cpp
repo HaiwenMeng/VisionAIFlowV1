@@ -71,6 +71,7 @@ void YoloeTrainForm::on_PB_Start_clicked()
     m_pendingOutput.clear();
     m_completeEventReceived = false;
     m_cancelled = false;
+    m_runningOperation = RunningOperation::Training;
     ui->PTE_Log->clear();
     ui->PB_Progress->setValue(0);
 
@@ -84,7 +85,8 @@ void YoloeTrainForm::on_PB_Start_clicked()
               << QStringLiteral("--imgsz") << QString::number(ui->SB_ImageSize->value()) << QStringLiteral("--batch")
               << QString::number(ui->SB_Batch->value()) << QStringLiteral("--workers")
               << QString::number(ui->SB_Workers->value()) << QStringLiteral("--device") << QStringLiteral("0")
-              << QStringLiteral("--reference-samples-per-class") << QString::number(ui->SB_ReferenceCount->value());
+              << QStringLiteral("--reference-samples-per-class") << QString::number(ui->SB_ReferenceCount->value())
+              << QStringLiteral("--mosaic") << QString::number(ui->CB_Mosaic->isChecked() ? 1 : 0);
 
     m_process->setWorkingDirectory(runtimeRoot);
     setRunning(true);
@@ -107,6 +109,47 @@ void YoloeTrainForm::on_PB_Stop_clicked()
     }
 }
 
+void YoloeTrainForm::on_PB_ExportOnnx_clicked()
+{
+    if (!isIdle())
+    {
+        QMessageBox::critical(this, QString(u8"YOLOE导出失败"), QString(u8"YOLOE进程正在运行"));
+        return;
+    }
+
+    QString errorMessage;
+    if (!validateExportRequest(&errorMessage))
+    {
+        QMessageBox::critical(this, QString(u8"YOLOE导出失败"), errorMessage);
+        return;
+    }
+
+    const QString runtimeRoot = QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("YOLOE"));
+    const QString script = QDir(runtimeRoot).filePath(QStringLiteral("export_trained_yoloe_seg.py"));
+    const QString checkpoint = QDir(outputRoot()).filePath(QStringLiteral("vp_seg_stage/weights/best.pt"));
+    const QString outputDirectory = QDir(outputRoot()).filePath(QStringLiteral("model11"));
+    const QStringList arguments{script,
+                                QStringLiteral("--weights"),
+                                checkpoint,
+                                QStringLiteral("--data"),
+                                ui->LE_Data->text(),
+                                QStringLiteral("--output"),
+                                outputDirectory,
+                                QStringLiteral("--imgsz"),
+                                QString::number(ui->SB_ImageSize->value()),
+                                QStringLiteral("--contract"),
+                                QStringLiteral("detect")};
+
+    m_pendingOutput.clear();
+    m_completeEventReceived = false;
+    m_cancelled = false;
+    m_runningOperation = RunningOperation::ExportOnnx;
+    m_process->setWorkingDirectory(runtimeRoot);
+    setRunning(true);
+    appendLog(QString(u8"开始导出YOLOE检测契约和VPE ONNX模型: %1").arg(checkpoint));
+    m_process->start(ui->LE_Python->text(), arguments);
+}
+
 void YoloeTrainForm::on_PB_OpenOutput_clicked()
 {
     QDesktopServices::openUrl(QUrl::fromLocalFile(outputRoot()));
@@ -118,8 +161,9 @@ void YoloeTrainForm::readProcessOutput()
     int newline = -1;
     while ((newline = m_pendingOutput.indexOf('\n')) >= 0)
     {
-        const QByteArray line = m_pendingOutput.left(newline).trimmed();
+        QByteArray line = m_pendingOutput.left(newline).trimmed();
         m_pendingOutput.remove(0, newline + 1);
+        line.replace(QByteArray(1, '\0'), QByteArray());
         if (line.startsWith(kEventPrefix))
         {
             handleEvent(line.mid(QByteArray(kEventPrefix).size()));
@@ -134,21 +178,53 @@ void YoloeTrainForm::readProcessOutput()
 void YoloeTrainForm::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     readProcessOutput();
+    const RunningOperation operation = m_runningOperation;
+    m_runningOperation = RunningOperation::None;
     setRunning(false);
     if (m_cancelled)
     {
-        appendLog(QString(u8"训练已取消"));
-        updateTaskProgress(QStringLiteral("dataset_ready"));
+        appendLog(operation == RunningOperation::ExportOnnx ? QString(u8"ONNX导出已取消") : QString(u8"训练已取消"));
+        if (operation == RunningOperation::Training)
+        {
+            updateTaskProgress(QStringLiteral("dataset_ready"));
+        }
         return;
     }
     if (exitStatus == QProcess::NormalExit && exitCode == 0 && m_completeEventReceived)
     {
-        appendLog(QString(u8"YOLOE训练、导出和校验全部完成"));
-        updateTaskProgress(QStringLiteral("trained"));
+        if (operation == RunningOperation::ExportOnnx)
+        {
+            const QString modelDirectory = QDir(outputRoot()).filePath(QStringLiteral("model11"));
+            const QString detectOnnx = QDir(modelDirectory).filePath(QStringLiteral("yoloe_detect.onnx"));
+            const QString vpeOnnx = QDir(modelDirectory).filePath(QStringLiteral("yoloe_vpe.onnx"));
+            if (!QFileInfo(detectOnnx).isFile() || QFileInfo(detectOnnx).size() <= 0 || !QFileInfo(vpeOnnx).isFile() ||
+                QFileInfo(vpeOnnx).size() <= 0)
+            {
+                appendLog(QString(u8"ONNX导出进程完成，但未生成有效模型: %1, %2").arg(detectOnnx, vpeOnnx));
+                QMessageBox::critical(this,
+                                      QString(u8"YOLOE导出失败"),
+                                      QString(u8"未生成有效的检测契约或VPE ONNX模型"));
+                return;
+            }
+            appendLog(QString(u8"YOLOE检测契约 ONNX导出完成: %1").arg(detectOnnx));
+            appendLog(QString(u8"YOLOE VPE ONNX导出完成: %1").arg(vpeOnnx));
+            QMessageBox::information(this,
+                                     QString(u8"YOLOE导出完成"),
+                                     QString(u8"检测契约和VPE ONNX模型已导出到: %1").arg(modelDirectory));
+        }
+        else
+        {
+            appendLog(QString(u8"YOLOE训练、导出和校验全部完成"));
+            updateTaskProgress(QStringLiteral("trained"));
+        }
         return;
     }
-    appendLog(QString(u8"YOLOE进程异常结束，退出码 %1").arg(exitCode));
-    updateTaskProgress(QStringLiteral("training_failed"));
+    appendLog(operation == RunningOperation::ExportOnnx ? QString(u8"YOLOE导出进程异常结束，退出码 %1").arg(exitCode)
+                                                        : QString(u8"YOLOE训练进程异常结束，退出码 %1").arg(exitCode));
+    if (operation == RunningOperation::Training)
+    {
+        updateTaskProgress(QStringLiteral("training_failed"));
+    }
 }
 
 void YoloeTrainForm::processError(QProcess::ProcessError error)
@@ -186,6 +262,44 @@ bool YoloeTrainForm::validateRequest(QString *errorMessage) const
     if (ui->SB_ImageSize->value() % 32 != 0)
     {
         *errorMessage = QString(u8"输入尺寸必须能被32整除");
+        return false;
+    }
+    return true;
+}
+
+bool YoloeTrainForm::validateExportRequest(QString *errorMessage) const
+{
+    if (m_taskName.isEmpty())
+    {
+        *errorMessage = QString(u8"未选择项目");
+        return false;
+    }
+    if (!QFileInfo::exists(ui->LE_Python->text()))
+    {
+        *errorMessage = QString(u8"未找到Python解释器: %1").arg(ui->LE_Python->text());
+        return false;
+    }
+    const QString script =
+        QDir(YtYoloDefine::toGetPythonPath()).filePath(QStringLiteral("YOLOE/export_trained_yoloe_seg.py"));
+    if (!QFileInfo::exists(script))
+    {
+        *errorMessage = QString(u8"未部署YOLOE导出入口: %1").arg(script);
+        return false;
+    }
+    if (!QFileInfo::exists(ui->LE_Data->text()))
+    {
+        *errorMessage = QString(u8"未生成YOLO分割数据集: %1").arg(ui->LE_Data->text());
+        return false;
+    }
+    const QString checkpoint = QDir(outputRoot()).filePath(QStringLiteral("vp_seg_stage/weights/best.pt"));
+    if (!QFileInfo(checkpoint).isFile())
+    {
+        *errorMessage = QString(u8"未找到YOLOE VPE阶段最佳模型: %1").arg(checkpoint);
+        return false;
+    }
+    if (ui->SB_ImageSize->value() <= 0 || ui->SB_ImageSize->value() % 32 != 0)
+    {
+        *errorMessage = QString(u8"输入尺寸必须为正数且能被32整除");
         return false;
     }
     return true;
@@ -229,6 +343,7 @@ void YoloeTrainForm::setRunning(bool running)
 {
     ui->PB_Start->setEnabled(!running);
     ui->PB_Stop->setEnabled(running);
+    ui->PB_ExportOnnx->setEnabled(!running);
 }
 
 void YoloeTrainForm::updateTaskProgress(const QString &progress)

@@ -21,9 +21,77 @@
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <exception>
+#include <utility>
+
+#include <opencv2/imgproc.hpp>
 
 namespace
 {
+const QString kYoloeIgnoreCanvasLabel = QStringLiteral("__yoloe_training_ignore__");
+const QString kYoloeIgnoreSubtractCanvasLabel = QStringLiteral("__yoloe_training_ignore_subtract__");
+const QString kYoloeIgnoreDisplayLabel = QString(u8"训练忽略区");
+const QString kYoloeIgnoreSubtractDisplayLabel = QString(u8"有效训练区");
+const QColor kYoloeIgnoreColor(190, 70, 255);
+const QColor kYoloeIgnoreSubtractColor(70, 220, 255);
+
+std::vector<cv::Point> toCvPolygon(LabelSet label)
+{
+    std::vector<cv::Point> polygon;
+    const QVector<QPointF> points = label.toGetPoints();
+    polygon.reserve(points.size());
+    for (const QPointF &point : points)
+    {
+        polygon.emplace_back(qRound(point.x()), qRound(point.y()));
+    }
+    return polygon;
+}
+
+void fillLabelMask(cv::Mat &mask, LabelSet label, uchar value)
+{
+    const std::vector<cv::Point> polygon = toCvPolygon(label);
+    if (polygon.size() >= 3)
+    {
+        cv::fillPoly(mask, std::vector<std::vector<cv::Point>>{polygon}, cv::Scalar(value));
+    }
+}
+
+QVector<QVector<double>> contoursToRoiData(const cv::Mat &mask, bool *hasHole = nullptr)
+{
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(mask.clone(), contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+    if (hasHole)
+    {
+        *hasHole = false;
+    }
+    QVector<QVector<double>> result;
+    for (int i = 0; i < static_cast<int>(contours.size()); ++i)
+    {
+        if (!hierarchy.empty() && hierarchy.at(i)[3] >= 0)
+        {
+            if (hasHole)
+            {
+                *hasHole = true;
+            }
+            continue;
+        }
+        std::vector<cv::Point> approximated;
+        cv::approxPolyDP(contours.at(i), approximated, 1.0, true);
+        if (approximated.size() < 3 || std::abs(cv::contourArea(approximated)) <= 0.0)
+        {
+            continue;
+        }
+        QVector<double> roiData;
+        roiData.reserve(static_cast<int>(approximated.size()) * 2);
+        for (const cv::Point &point : approximated)
+        {
+            roiData << point.x << point.y;
+        }
+        result.append(roiData);
+    }
+    return result;
+}
+
 QVector<double> toDisplayPointData(LabelSet &label)
 {
     QVector<double> displayData;
@@ -201,6 +269,21 @@ YoloeLabelForm::YoloeLabelForm(QWidget *parent) : QWidget(parent), ui(new Ui::Yo
     connect(ui->YtLabelRoi, &Sam2LabelCanvasCompat::SigGetDataUpdate, this, &YoloeLabelForm::toGetDataUpdate);
     connect(ui->YtLabelRoi, &Sam2LabelCanvasCompat::ROIChange, this, &YoloeLabelForm::Slot_ROIChange);
     connect(ui->YtLabelRoi, &Sam2LabelCanvasCompat::SamRuntimeError, this, &YoloeLabelForm::toHandleSam2RuntimeError);
+    connect(ui->YtLabelRoi, &Sam2LabelCanvasCompat::EraserStrokeCommitted, this, &YoloeLabelForm::toApplyEraserStroke);
+    connect(ui->YtLabelRoi,
+            &Sam2LabelCanvasCompat::EraserExitRequested,
+            this,
+            [this]()
+            {
+                ui->PB_Eraser->setChecked(false);
+            });
+    connect(ui->YtLabelRoi,
+            &Sam2LabelCanvasCompat::ManualPolygonError,
+            this,
+            [this](const QString &errorMessage)
+            {
+                QMessageBox::warning(this, QString(u8"警告"), errorMessage);
+            });
     connect(ui->LW_SetLab,
             &QTableWidget::itemSelectionChanged,
             this,
@@ -444,10 +527,15 @@ void YoloeLabelForm::toInitLabelSet()
         ui->CB_CurrentLabel->addItem(QPixmap::fromImage(temim), m_YtYoloSetPro.toGetLabelName().at(i));
         temNames << m_YtYoloSetPro.toGetLabelName().at(i);
     }
+    temNames << kYoloeIgnoreCanvasLabel;
+    temNames << kYoloeIgnoreSubtractCanvasLabel;
+    QVector<QColor> canvasColors = m_YtYoloSetPro.toGetColorDefine();
+    canvasColors << kYoloeIgnoreColor;
+    canvasColors << kYoloeIgnoreSubtractColor;
     ui->CB_CurrentLabel->setCurrentIndex(0);
     ui->CB_ROIType->setCurrentIndex(0);
     //
-    ui->YtLabelRoi->toSetLabelNames(temNames, m_YtYoloSetPro.toGetColorDefine());
+    ui->YtLabelRoi->toSetLabelNames(temNames, canvasColors);
     toSyncSam2PromptMode();
 }
 
@@ -458,7 +546,22 @@ void YoloeLabelForm::toSyncSam2PromptMode()
         return;
     }
 
+    const bool eraserMode = ui->PB_Eraser && ui->PB_Eraser->isChecked();
     const bool samReady = m_Sam2Available && ui->YtLabelRoi->isSamReady();
+    ui->YtLabelRoi->toSetManualPolygonMode(false);
+    ui->YtLabelRoi->toSetEraserMode(eraserMode);
+    ui->YtLabelRoi->toSetEraserDiameter(ui->spinBox_EraserSize->value());
+    ui->YtLabelRoi->toSetIgnoreMaskVisible(ui->ckB_ShowMask->isChecked());
+    if (eraserMode)
+    {
+        ui->CB_SetLabeMode->setEnabled(false);
+        ui->CB_ROIType->setEnabled(false);
+        ui->CB_CurrentLabel->setEnabled(false);
+        ui->YtLabelRoi->setEnabled(true);
+        return;
+    }
+
+    ui->CB_CurrentLabel->setEnabled(true);
     if (!samReady)
     {
         ui->CB_SetLabeMode->setEnabled(false);
@@ -570,8 +673,9 @@ void YoloeLabelForm::toGetDataUpdate(QString SetKey, QString LableName, int type
         return;
     }
     int rowcount = ui->LW_SetLab->rowCount();
+    const bool isIgnore = LableName == kYoloeIgnoreCanvasLabel;
     int getindex = m_YtYoloSetPro.toGetLabelName().lastIndexOf(LableName);
-    if (getindex < 0)
+    if (!isIgnore && getindex < 0)
     {
         return;
     }
@@ -583,11 +687,17 @@ void YoloeLabelForm::toGetDataUpdate(QString SetKey, QString LableName, int type
             ui->LW_SetLab->insertRow(i);
             ui->LW_SetLab->setItem(i, 0, new QTableWidgetItem(SetKey));
 
-            ui->LW_SetLab->setItem(i, 1, new QTableWidgetItem(LableName));
-            ui->LW_SetLab->item(i, 1)->setBackground(m_YtYoloSetPro.toGetColorDefine().at(getindex));
+            ui->LW_SetLab->setItem(i, 1, new QTableWidgetItem(isIgnore ? kYoloeIgnoreDisplayLabel : LableName));
+            ui->LW_SetLab->item(i, 1)->setBackground(isIgnore ? kYoloeIgnoreColor
+                                                              : m_YtYoloSetPro.toGetColorDefine().at(getindex));
 
             QVector<double> getData = ui->YtLabelRoi->getROI(SetKey);
-            temppset.toInitProData(LableName, LpolygonROI, getData);
+            temppset.toInitProData(isIgnore ? QString() : LableName, LpolygonROI, getData);
+            temppset.trainingRole = isIgnore ? LabelSet::TrainingRole::Ignore : LabelSet::TrainingRole::Target;
+            if (!isIgnore)
+            {
+                m_YtRoiLabelSet.m_SampleRole = YtRoiLabelSet::SampleRole::Labeled;
+            }
             ui->LW_SetLab->setItem(i, 2, new QTableWidgetItem(temppset.shape_type));
 
             ui->LW_SetLab->setItem(i, 3, new QTableWidgetItem(toRoiText(getData)));
@@ -620,7 +730,10 @@ void YoloeLabelForm::Slot_ROIChange(QVector<double> tdata, QString &key, int typ
         if (key.toInt() == ui->LW_SetLab->item(i, 0)->text().toInt())
         {
             getindex = i;
-            temppset.toInitProData(ui->LW_SetLab->item(i, 1)->text(), LpolygonROI, tdata);
+            const LabelSet &existingLabel = m_YtRoiLabelSet.m_SetLabeset.at(i);
+            temppset.toInitProData(existingLabel.Name, LpolygonROI, tdata);
+            temppset.trainingRole = existingLabel.trainingRole;
+            temppset.ignoreOperation = existingLabel.ignoreOperation;
             ui->LW_SetLab->setItem(i, 3, new QTableWidgetItem(toRoiText(tdata)));
             //
             break;
@@ -681,26 +794,26 @@ void YoloeLabelForm::on_PB_SunDataSet_clicked()
 
 void YoloeLabelForm::on_LW_LabelSet_itemDoubleClicked(QListWidgetItem *item)
 {
+    Q_UNUSED(item);
     int getindex = ui->LW_LabelSet->currentRow();
     if (getindex < 0)
     {
         return;
     }
     SetLabelName tDlg;
-    tDlg.toSetData(m_YtYoloSetPro.toGetLabelName().at(getindex), m_YtYoloSetPro.toGetColorDefine().at(getindex));
+    const QString projectPath = YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName;
+    tDlg.toSetModifyData(m_YtYoloSetPro.toGetLabelName().at(getindex),
+                         m_YtYoloSetPro.toGetColorDefine().at(getindex),
+                         getindex,
+                         projectPath);
     if (QDialog::Accepted == tDlg.exec())
     {
-        QColor getColor;
-        QString getLable;
-        tDlg.toGetData(getLable, getColor);
-        if (getLable.isEmpty())
-        {
-            QMessageBox::warning(0, u8"警告", u8"标签不能为空", u8"确定");
-            return;
-        }
-        m_YtYoloSetPro.toModifyInfo(getLable, getColor, getindex);
-        m_YtYoloSetPro.toSaveData(YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName);
+        m_YtYoloSetPro.toLoadData(projectPath);
         toInitLabelSet();
+        if (m_CurentIndex >= 0 && !m_WorkPath.isEmpty() && !m_CurentFileName.isEmpty())
+        {
+            on_PB_Reload_clicked();
+        }
     }
 }
 
@@ -840,6 +953,7 @@ void YoloeLabelForm::on_LW_DataSheet_itemClicked(QListWidgetItem *item)
         ui->LW_FileList->addItem(listItem);
     }
     ui->CB_CurrentLabel->setEnabled(true);
+    toSyncSam2PromptMode();
 }
 
 void YoloeLabelForm::on_LW_FileList_itemSelectionChanged()
@@ -866,7 +980,7 @@ void YoloeLabelForm::on_PB_SaveCurent_clicked()
     //
     if (m_CurentIndex >= 0 && m_CurentIndex < ui->LW_FileList->count())
     {
-        if (m_YtRoiLabelSet.m_SetLabeset.size() > 0)
+        if (!m_YtRoiLabelSet.m_SetLabeset.isEmpty() || m_YtRoiLabelSet.isBackgroundSample())
         {
             ui->LW_FileList->item(m_CurentIndex)->setIcon(QIcon(u8":/ResourYolo/Selfbutton/已标注.png"));
         }
@@ -880,11 +994,21 @@ void YoloeLabelForm::on_PB_SaveCurent_clicked()
 void YoloeLabelForm::on_PB_Reload_clicked()
 {
     m_YtRoiLabelSet.toLoadJson(m_WorkPath);
+    for (int i = m_YtRoiLabelSet.m_SetLabeset.size() - 1; i >= 0; --i)
+    {
+        const LabelSet &label = m_YtRoiLabelSet.m_SetLabeset.at(i);
+        if (!label.isTrainingIgnored() && label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
+        {
+            m_YtRoiLabelSet.m_SampleRole = YtRoiLabelSet::SampleRole::Background;
+            m_YtRoiLabelSet.toReMoveIndex(i);
+        }
+    }
 
     m_IsaddState = true;
 
     ui->YtLabelRoi->toSetHighlightedRoiKey(QString());
     ui->YtLabelRoi->toRemoveAllRoi();
+    ui->YtLabelRoi->toSetIgnoreMaskVisible(ui->ckB_ShowMask->isChecked());
     m_TxtOverPlayShow.toClearData();
     ui->LW_SetLab->setRowCount(m_YtRoiLabelSet.m_SetLabeset.size());
 
@@ -899,15 +1023,34 @@ void YoloeLabelForm::on_PB_Reload_clicked()
             {
                 displayData = getdata;
             }
-            ui->YtLabelRoi->toAppItemLabel(m_YtRoiLabelSet.m_SetLabeset[i].toGetName(),
-                                           m_YtRoiLabelSet.m_SetLabeset[i].toGetRoiType(),
-                                           displayData);
+            const bool isIgnore = m_YtRoiLabelSet.m_SetLabeset[i].isTrainingIgnored();
+            const bool isIgnoreSubtract = m_YtRoiLabelSet.m_SetLabeset[i].isIgnoreSubtract();
+            const QString canvasLabel =
+                isIgnore ? (isIgnoreSubtract ? kYoloeIgnoreSubtractCanvasLabel : kYoloeIgnoreCanvasLabel)
+                         : m_YtRoiLabelSet.m_SetLabeset[i].toGetName();
+            ui->YtLabelRoi->toAppItemLabel(canvasLabel, m_YtRoiLabelSet.m_SetLabeset[i].toGetRoiType(), displayData);
             //
             ui->LW_SetLab->setItem(i, 0, new QTableWidgetItem(QString::number(i + 1)));
 
-            ui->LW_SetLab->setItem(i, 1, new QTableWidgetItem(m_YtRoiLabelSet.m_SetLabeset[i].toGetName()));
-            int getinde = qMax(0, m_YtYoloSetPro.toGetLabelName().indexOf(m_YtRoiLabelSet.m_SetLabeset[i].toGetName()));
-            ui->LW_SetLab->item(i, 1)->setBackground(m_YtYoloSetPro.toGetColorDefine().at(getinde));
+            ui->LW_SetLab->setItem(i,
+                                   1,
+                                   new QTableWidgetItem(isIgnore ? (isIgnoreSubtract ? kYoloeIgnoreSubtractDisplayLabel
+                                                                                     : kYoloeIgnoreDisplayLabel)
+                                                                 : m_YtRoiLabelSet.m_SetLabeset[i].toGetName()));
+            if (isIgnore)
+            {
+                ui->LW_SetLab->item(i, 1)->setBackground(isIgnoreSubtract ? kYoloeIgnoreSubtractColor
+                                                                          : kYoloeIgnoreColor);
+            }
+            else
+            {
+                const int colorIndex =
+                    m_YtYoloSetPro.toGetLabelName().indexOf(m_YtRoiLabelSet.m_SetLabeset[i].toGetName());
+                if (colorIndex >= 0 && colorIndex < m_YtYoloSetPro.toGetColorDefine().size())
+                {
+                    ui->LW_SetLab->item(i, 1)->setBackground(m_YtYoloSetPro.toGetColorDefine().at(colorIndex));
+                }
+            }
 
             ui->LW_SetLab->setItem(i, 2, new QTableWidgetItem(m_YtRoiLabelSet.m_SetLabeset[i].shape_type));
 
@@ -968,6 +1111,191 @@ void YoloeLabelForm::on_CB_SetLabeMode_activated(int index)
 {
     Q_UNUSED(index);
     toSyncSam2PromptMode();
+}
+
+void YoloeLabelForm::on_PB_DrawIgnore_clicked()
+{
+    if (m_GetImage.isNull() || m_GetImage.width() <= 0 || m_GetImage.height() <= 0)
+    {
+        QMessageBox::warning(this, QString(u8"警告"), QString(u8"请先选择需要标注的图像"));
+        return;
+    }
+
+    if (ui->PB_Eraser->isChecked())
+    {
+        ui->PB_Eraser->setChecked(false);
+    }
+
+    QVector<LabelSet> labels;
+    labels.reserve(m_YtRoiLabelSet.m_SetLabeset.size() + 1);
+
+    LabelSet fullImageIgnore;
+    const QVector<double> fullImagePolygon = {
+        0.0,
+        0.0,
+        m_GetImage.width() - 0.5,
+        0.0,
+        m_GetImage.width() - 0.5,
+        m_GetImage.height() - 0.5,
+        0.0,
+        m_GetImage.height() - 0.5,
+    };
+    fullImageIgnore.toInitProData(QString(), LpolygonROI, fullImagePolygon);
+    fullImageIgnore.trainingRole = LabelSet::TrainingRole::Ignore;
+    fullImageIgnore.ignoreOperation = LabelSet::IgnoreOperation::Add;
+    labels.append(fullImageIgnore);
+
+    for (const LabelSet &label : std::as_const(m_YtRoiLabelSet.m_SetLabeset))
+    {
+        if (label.isTrainingIgnored() && !label.isIgnoreSubtract())
+        {
+            continue;
+        }
+        labels.append(label);
+    }
+
+    m_YtRoiLabelSet.m_SetLabeset = labels;
+    ui->ckB_ShowMask->setChecked(true);
+    on_PB_SaveCurent_clicked();
+    on_PB_Reload_clicked();
+}
+
+void YoloeLabelForm::on_PB_Eraser_toggled(bool checked)
+{
+    if (checked)
+    {
+        ui->ckB_ShowMask->setChecked(true);
+    }
+    toSyncSam2PromptMode();
+}
+
+void YoloeLabelForm::on_spinBox_EraserSize_valueChanged(int value)
+{
+    ui->YtLabelRoi->toSetEraserDiameter(value);
+}
+
+void YoloeLabelForm::on_ckB_ShowMask_stateChanged(int state)
+{
+    ui->YtLabelRoi->toSetIgnoreMaskVisible(state == Qt::Checked);
+}
+
+void YoloeLabelForm::toApplyEraserStroke(const QVector<QPointF> &points, qreal diameter)
+{
+    if (points.isEmpty() || m_GetImage.isNull())
+    {
+        return;
+    }
+
+    const cv::Size imageSize(m_GetImage.width(), m_GetImage.height());
+    cv::Mat strokeMask(imageSize, CV_8UC1, cv::Scalar(0));
+    const int brushDiameter = qMax(2, qRound(diameter));
+    const int brushRadius = qMax(1, brushDiameter / 2);
+    for (int i = 0; i < points.size(); ++i)
+    {
+        const cv::Point current(qRound(points.at(i).x()), qRound(points.at(i).y()));
+        cv::circle(strokeMask, current, brushRadius, cv::Scalar(255), cv::FILLED, cv::LINE_8);
+        if (i > 0)
+        {
+            const cv::Point previous(qRound(points.at(i - 1).x()), qRound(points.at(i - 1).y()));
+            cv::line(strokeMask, previous, current, cv::Scalar(255), brushDiameter, cv::LINE_8);
+        }
+    }
+
+    cv::Mat ignoreAddMask(imageSize, CV_8UC1, cv::Scalar(0));
+    cv::Mat existingSubtractMask(imageSize, CV_8UC1, cv::Scalar(0));
+    int existingSubtractCount = 0;
+    for (LabelSet label : std::as_const(m_YtRoiLabelSet.m_SetLabeset))
+    {
+        if (label.isTrainingIgnored() && !label.isIgnoreSubtract())
+        {
+            fillLabelMask(ignoreAddMask, label, 255);
+        }
+        else if (label.isIgnoreSubtract())
+        {
+            fillLabelMask(existingSubtractMask, label, 255);
+            ++existingSubtractCount;
+        }
+    }
+    cv::Mat effectiveIgnore;
+    cv::Mat inverseSubtractMask;
+    cv::bitwise_not(existingSubtractMask, inverseSubtractMask);
+    cv::bitwise_and(ignoreAddMask, inverseSubtractMask, effectiveIgnore);
+
+    QVector<LabelSet> nextLabels;
+    bool changed = false;
+    bool targetHoleRejected = false;
+    for (LabelSet label : std::as_const(m_YtRoiLabelSet.m_SetLabeset))
+    {
+        if (label.isTrainingIgnored())
+        {
+            if (!label.isIgnoreSubtract())
+            {
+                nextLabels.append(label);
+            }
+            continue;
+        }
+
+        cv::Mat targetMask(imageSize, CV_8UC1, cv::Scalar(0));
+        fillLabelMask(targetMask, label, 255);
+        cv::Mat intersection;
+        cv::bitwise_and(targetMask, strokeMask, intersection);
+        if (cv::countNonZero(intersection) == 0)
+        {
+            nextLabels.append(label);
+            continue;
+        }
+
+        cv::Mat remaining;
+        cv::bitwise_not(strokeMask, remaining);
+        cv::bitwise_and(targetMask, remaining, remaining);
+        bool hasHole = false;
+        const QVector<QVector<double>> contours = contoursToRoiData(remaining, &hasHole);
+        if (hasHole)
+        {
+            targetHoleRejected = true;
+            nextLabels.append(label);
+            continue;
+        }
+        for (const QVector<double> &roiData : contours)
+        {
+            LabelSet replacement;
+            replacement.toInitProData(label.Name, LpolygonROI, roiData);
+            replacement.trainingRole = LabelSet::TrainingRole::Target;
+            nextLabels.append(replacement);
+        }
+        changed = true;
+    }
+
+    cv::Mat erasedIgnore;
+    cv::bitwise_and(strokeMask, effectiveIgnore, erasedIgnore);
+    cv::Mat mergedSubtractMask;
+    cv::bitwise_or(existingSubtractMask, erasedIgnore, mergedSubtractMask);
+    cv::bitwise_and(mergedSubtractMask, ignoreAddMask, mergedSubtractMask);
+    const bool ignoreChanged = cv::countNonZero(erasedIgnore) > 0;
+    const QVector<QVector<double>> subtractContours = contoursToRoiData(mergedSubtractMask);
+    const bool subtractRepresentationChanged = existingSubtractCount != subtractContours.size();
+    for (const QVector<double> &roiData : subtractContours)
+    {
+        LabelSet subtractLabel;
+        subtractLabel.toInitProData(QString(), LpolygonROI, roiData);
+        subtractLabel.trainingRole = LabelSet::TrainingRole::Ignore;
+        subtractLabel.ignoreOperation = LabelSet::IgnoreOperation::Subtract;
+        nextLabels.append(subtractLabel);
+    }
+    changed = changed || ignoreChanged || subtractRepresentationChanged;
+
+    if (targetHoleRejected)
+    {
+        QMessageBox::information(this, QString(u8"提示"), QString(u8"普通目标不支持内部孔洞，相关目标未被修改"));
+    }
+    if (!changed)
+    {
+        return;
+    }
+
+    m_YtRoiLabelSet.m_SetLabeset = nextLabels;
+    m_YtRoiLabelSet.toSaveJson(m_WorkPath);
+    on_PB_Reload_clicked();
 }
 
 void YoloeLabelForm::on_PB_ReMoveCurentLab_clicked()
@@ -1110,6 +1438,16 @@ void YoloeLabelForm::on_PB_XLabe_clicked()
 
 void YoloeLabelForm::on_LW_SetLab_cellDoubleClicked(int row, int column)
 {
+    Q_UNUSED(column);
+    if (row < 0 || row >= m_YtRoiLabelSet.m_SetLabeset.size())
+    {
+        return;
+    }
+    if (m_YtRoiLabelSet.m_SetLabeset.at(row).isTrainingIgnored())
+    {
+        QMessageBox::information(this, QString(u8"提示"), QString(u8"训练忽略区不能重命名"));
+        return;
+    }
     //�����޸ı�ǩ
     ReNameDlg tDlg;
 
@@ -1243,40 +1581,29 @@ void YoloeLabelForm::on_ckB_ShowLable_stateChanged(int arg1)
 
 void YoloeLabelForm::on_PB_SetBackgroud_clicked()
 {
-
-    QString SetNewType = "background";
-
-    //���û�У������ӡ�background�����
-    if (!m_YtYoloSetPro.toGetLabelName().contains(SetNewType))
+    if (ui->LW_DataSheet->currentItem() == nullptr || ui->LW_FileList->currentItem() == nullptr)
     {
-        m_YtYoloSetPro.toAppendLabelInfo(SetNewType, Qt::green);
-
-        m_YtYoloSetPro.toSaveData(YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName);
-        // qDebug()<<"label data save path:" <<m_WorkPath;
-        toInitLabelSet();
+        return;
     }
 
-    //��ע��ǰͼƬΪ��background�����
-    QImage temim;
-    LabelSet temlabeset;
-    CMvRect temsetdata;
-
-    m_WorkPath = YtYoloDefine::toGetLabelPath() + "/" + m_ProcessName + "/" + ui->LW_DataSheet->currentItem()->text();
-
-    temim.load(m_WorkPath + "/" + ui->LW_FileList->currentItem()->text());
-    qDebug() << "PPPP" << m_WorkPath;
+    QVector<LabelSet> ignoreLabels;
+    for (const LabelSet &label : std::as_const(m_YtRoiLabelSet.m_SetLabeset))
+    {
+        if (label.isTrainingIgnored())
+        {
+            ignoreLabels.append(label);
+        }
+    }
+    m_YtRoiLabelSet.toClearData();
+    for (const LabelSet &label : std::as_const(ignoreLabels))
+    {
+        m_YtRoiLabelSet.toAppendData(label);
+    }
+    m_YtRoiLabelSet.m_SampleRole = YtRoiLabelSet::SampleRole::Background;
     m_YtRoiLabelSet.toSetFileName(ui->LW_FileList->currentItem()->text());
-    m_YtRoiLabelSet.toSetImSize(temim.size());
-    m_YtRoiLabelSet.m_SetLabeset.clear();
-    temsetdata = CMvRect(2, 2, temim.width() - 2, temim.height() - 2);
-    temlabeset.toInitProData(SetNewType, LrectangleROI, temsetdata.Data());
-    m_YtRoiLabelSet.m_SetLabeset.append(temlabeset);
-
+    m_YtRoiLabelSet.toSetImSize(m_GetImage.size());
     m_YtRoiLabelSet.toSaveJson(m_WorkPath);
-    ui->YtLabelRoi->toSetImage(temim);
     ui->LW_FileList->currentItem()->setIcon(QIcon(u8":/ResourYolo/Selfbutton/已标注.png"));
-
-    //���� ��ע
     on_PB_Reload_clicked();
 }
 

@@ -58,6 +58,7 @@ public:
 
 private:
     void toSyncSam2PromptMode();
+    void toApplyEraserStroke(const QVector<QPointF> &points, qreal diameter);
     void toHandleSam2Unavailable(const QString &errorMessage, bool forceMessage = false);
     void toHandleSam2RuntimeError(const QString &errorMessage);
 public slots:
@@ -95,6 +96,10 @@ private slots:
     void on_PB_LRConv_clicked();
     void on_comboBox_currentIndexChanged(int index);
     void on_PB_AddAnno_clicked();
+    void on_PB_DrawIgnore_clicked();
+    void on_PB_Eraser_toggled(bool checked);
+    void on_spinBox_EraserSize_valueChanged(int value);
+    void on_ckB_ShowMask_stateChanged(int state);
 
 public:
     QMenu m_pRightMenu;

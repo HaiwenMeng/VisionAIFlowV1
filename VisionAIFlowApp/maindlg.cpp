@@ -10,6 +10,7 @@
 #include "TrainForms/DetecForms/traindataform.h"
 #include "TrainForms/YoloEForms/yoloetrainform.h"
 #include "AnnoForms/YoloEAnnoForm/YoloeLabelForm.h"
+#include "InferForms/SegForms/YoloeValForm.h"
 #include "valsetform.h"
 
 #include <QDebug>
@@ -27,7 +28,7 @@ MainDlg::MainDlg(QWidget *parent)
     : QWidget(parent), ui(new Ui::MainDlg), m_projectForm(new ProJectForm(this)), m_dataSetForm(new DataSetForm(this)),
       m_trainDataForm(new TrainDataForm(this)), m_valSetForm(new ValSetForm(this)),
       m_commonSetForm(new CommonSetForm(this)), m_yoloeTrainForm(new YoloeTrainForm(this)),
-      m_systemForm(new SystemForm(this))
+      m_yoloeValForm(new YoloeValForm(this)), m_systemForm(new SystemForm(this))
 {
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     ui->setupUi(this);
@@ -57,6 +58,7 @@ MainDlg::MainDlg(QWidget *parent)
                                  m_trainDataForm,
                                  m_yoloeTrainForm,
                                  m_valSetForm,
+                                 m_yoloeValForm,
                                  m_commonSetForm,
                                  m_systemForm};
     for (QWidget *page : pages)
@@ -259,8 +261,16 @@ void MainDlg::on_PB_ValPro_clicked()
         return;
     }
 
+    if (CurrentTaskIsYoloE())
+    {
+        m_yoloeValForm->setTaskName(m_taskName);
+        m_yoloeValForm->initialize();
+        ui->stackedWidget->setCurrentWidget(m_yoloeValForm);
+        SetCurrentNavButton(ui->PB_ValPro);
+        return;
+    }
+
     m_valSetForm->m_DataSetForm = m_dataSetForm;
-    m_valSetForm->setYoloEMode(CurrentTaskIsYoloE());
     m_valSetForm->toSetProcessName(m_taskName);
     m_valSetForm->toInitShow();
     ui->stackedWidget->setCurrentWidget(m_valSetForm);

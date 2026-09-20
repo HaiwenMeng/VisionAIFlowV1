@@ -140,8 +140,18 @@ void DataSetForm::toProDataGet(bool isadd)
     {
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/images");
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/labels");
+        if (m_yoloEMode)
+        {
+            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/ignore");
+            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/ignore_subtract");
+        }
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/images");
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/labels");
+        if (m_yoloEMode)
+        {
+            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/ignore");
+            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/ignore_subtract");
+        }
     }
     else
     {
@@ -236,8 +246,13 @@ void DataSetForm::toProDataGet(bool isadd)
             {
                 for (LabelSet &label : m_YtRoiLabelSet.m_SetLabeset)
                 {
-                    if (label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0 &&
-                        label.toGetRoiType() != LabelSet::LpolygonROI)
+                    if (label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0 &&
+                        !label.isTrainingIgnored())
+                    {
+                        m_YtRoiLabelSet.m_SampleRole = YtRoiLabelSet::SampleRole::Background;
+                        continue;
+                    }
+                    if (label.toGetRoiType() != LabelSet::LpolygonROI)
                     {
                         m_DataGenErrorMessage = QString(u8"YOLOE仅接受多边形mask标注: %1").arg(jsonPath);
                         qWarning() << m_DataGenErrorMessage;
@@ -250,7 +265,7 @@ void DataSetForm::toProDataGet(bool isadd)
             // 负样本（背景图）在后面才加到训练集csv。
             // train.csv中，background类别样本一定要在train的其他类别样本后面，否则python端生成.cache那一步会报错。
 
-            if (m_YtRoiLabelSet.m_NameSetLis.contains("background"))
+            if (!m_yoloEMode && m_YtRoiLabelSet.m_NameSetLis.contains("background"))
             {
                 if (BG_label_index < 0 || BG_label_index >= m_BackGroundJsonfilename.size())
                 {
@@ -281,9 +296,26 @@ void DataSetForm::toProDataGet(bool isadd)
             QString datasetImagePath = imagePath;
             QString datasetLabelPath =
                 QString("%1/%2.txt").arg(temdirSave.path()).arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex));
+            QString datasetIgnorePath;
+            QString datasetIgnoreSubtractPath;
             QString segmentLabelDirectory = temdirSave.path();
             if (m_yoloEMode)
             {
+                const int targetCount = m_YtRoiLabelSet.targetCount(trainingLabelNames());
+                if (m_YtRoiLabelSet.isBackgroundSample() && targetCount > 0)
+                {
+                    m_DataGenErrorMessage = QString(u8"YOLOE背景样本不能包含普通目标: %1").arg(jsonPath);
+                    qWarning() << m_DataGenErrorMessage;
+                    emit Sigfinish();
+                    return;
+                }
+                if (!m_YtRoiLabelSet.isBackgroundSample() && targetCount < 1)
+                {
+                    m_DataGenErrorMessage = QString(u8"YOLOE普通样本没有有效目标: %1").arg(jsonPath);
+                    qWarning() << m_DataGenErrorMessage;
+                    emit Sigfinish();
+                    return;
+                }
                 const QString split = j < minvalval ? QStringLiteral("val") : QStringLiteral("train");
                 const QString splitDirectory =
                     QDir(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName).filePath(split);
@@ -292,8 +324,15 @@ void DataSetForm::toProDataGet(bool isadd)
                 datasetLabelPath =
                     QDir(splitDirectory + QStringLiteral("/labels"))
                         .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
+                datasetIgnorePath =
+                    QDir(splitDirectory + QStringLiteral("/ignore"))
+                        .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
+                datasetIgnoreSubtractPath =
+                    QDir(splitDirectory + QStringLiteral("/ignore_subtract"))
+                        .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
                 segmentLabelDirectory = QFileInfo(datasetLabelPath).absolutePath();
-                if (QFileInfo::exists(datasetImagePath) || QFileInfo::exists(datasetLabelPath))
+                if (QFileInfo::exists(datasetImagePath) || QFileInfo::exists(datasetLabelPath) ||
+                    QFileInfo::exists(datasetIgnorePath) || QFileInfo::exists(datasetIgnoreSubtractPath))
                 {
                     m_DataGenErrorMessage =
                         QString(u8"YOLOE数据集中存在同名文件: %1").arg(QFileInfo(datasetImagePath).fileName());
@@ -323,12 +362,37 @@ void DataSetForm::toProDataGet(bool isadd)
             else if (runIndex == 2)
             {
                 m_YtRoiLabelSet.toSaveSegTxt(segmentLabelDirectory, trainingLabelNames());
-                if (m_yoloEMode && (!QFileInfo::exists(datasetLabelPath) || QFileInfo(datasetLabelPath).size() <= 0))
+                if (m_yoloEMode && !QFileInfo::exists(datasetLabelPath))
                 {
-                    m_DataGenErrorMessage = QString(u8"生成YOLOE分割标签失败或标签为空: %1").arg(datasetLabelPath);
+                    m_DataGenErrorMessage = QString(u8"生成YOLOE分割标签失败: %1").arg(datasetLabelPath);
                     qWarning() << m_DataGenErrorMessage << jsonPath;
                     emit Sigfinish();
                     return;
+                }
+                if (m_yoloEMode && !m_YtRoiLabelSet.isBackgroundSample() && QFileInfo(datasetLabelPath).size() <= 0)
+                {
+                    m_DataGenErrorMessage = QString(u8"YOLOE普通样本的分割标签为空: %1").arg(datasetLabelPath);
+                    qWarning() << m_DataGenErrorMessage << jsonPath;
+                    emit Sigfinish();
+                    return;
+                }
+                if (m_yoloEMode)
+                {
+                    QString ignoreError;
+                    if (!m_YtRoiLabelSet.toSaveIgnoreSegTxt(datasetIgnorePath, &ignoreError))
+                    {
+                        m_DataGenErrorMessage = ignoreError;
+                        qWarning() << m_DataGenErrorMessage << jsonPath;
+                        emit Sigfinish();
+                        return;
+                    }
+                    if (!m_YtRoiLabelSet.toSaveIgnoreSubtractSegTxt(datasetIgnoreSubtractPath, &ignoreError))
+                    {
+                        m_DataGenErrorMessage = ignoreError;
+                        qWarning() << m_DataGenErrorMessage << jsonPath;
+                        emit Sigfinish();
+                        return;
+                    }
                 }
             }
             else if (runIndex == 3)
@@ -734,6 +798,21 @@ void DataSetForm::toSaveData(int changele, bool datapp)
     outt << QString("path: %1/").arg(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName) << "\n";
     outt << QString("train: %1").arg("train") << "\n";
     outt << QString("val: %1").arg("val") << "\n";
+    if (m_yoloEMode)
+    {
+        outt << "ignore:"
+             << "\n";
+        outt << "  train: train/ignore"
+             << "\n";
+        outt << "  val: val/ignore"
+             << "\n";
+        outt << "ignore_subtract:"
+             << "\n";
+        outt << "  train: train/ignore_subtract"
+             << "\n";
+        outt << "  val: val/ignore_subtract"
+             << "\n";
+    }
 
     outt << "names:"
          << "\n";

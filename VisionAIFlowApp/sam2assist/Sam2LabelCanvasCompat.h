@@ -3,8 +3,10 @@
 
 #include <QColor>
 #include <QImage>
+#include <QKeyEvent>
 #include <QMap>
 #include <QMouseEvent>
+#include <QPainterPath>
 #include <QPointF>
 #include <QStringList>
 #include <QVector>
@@ -31,6 +33,11 @@ public:
     int samTypeIndex() const;
     QString toGetSamModelDir() const;
     void toSetManualBoxMode(bool enabled);
+    void toSetManualPolygonMode(bool enabled);
+    bool isManualPolygonMode() const;
+    void toSetEraserMode(bool enabled);
+    void toSetEraserDiameter(qreal diameter);
+    void toSetIgnoreMaskVisible(bool visible);
 
     template <typename T> void addOverPlayPtr(T *overPlay, const QString &name)
     {
@@ -53,6 +60,9 @@ signals:
     void SigGetDataUpdate(QString SetKey, QString LableName, int type);
     void ROIChange(QVector<double> tdata, QString &key, int type);
     void SamRuntimeError(QString errorMessage);
+    void ManualPolygonError(QString errorMessage);
+    void EraserStrokeCommitted(QVector<QPointF> points, qreal diameter);
+    void EraserExitRequested();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -60,6 +70,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void leaveEvent(QEvent *event) override;
 
@@ -78,6 +89,8 @@ private:
     void toRunPointPrompt(const QPoint &widgetPoint);
     void toRunRectPrompt(const QPoint &beginPt, const QPoint &endPt);
     void toCommitManualRect(const QRectF &rect);
+    void toCommitManualPolygon();
+    void toCancelManualPolygon();
     void toDrawRoiByImageData(QPainter &painter,
                               const QVector<double> &roiData,
                               const QColor &color,
@@ -92,6 +105,8 @@ private:
                                    qreal scale,
                                    bool closed,
                                    int penWidth) const;
+    void toFillCheckerboardPath(QPainter &painter, const QPainterPath &path, const QColor &color) const;
+    QPainterPath toPolygonPath(const QVector<QPointF> &points, const QRectF &imageRect, qreal scale) const;
     void toDrawImageInfoBar(QPainter &painter) const;
     void toUpdateMouseImageInfo(const QPoint &widgetPoint);
     QString toImageInfoText() const;
@@ -126,6 +141,15 @@ private:
     QPoint m_viewDragStartPoint;
     QPointF m_viewDragStartCenter;
     bool m_manualBoxMode = false;
+    bool m_manualPolygonMode = false;
+    QVector<QPointF> m_manualPolygonPoints;
+    QPointF m_manualPolygonCursor;
+    bool m_hasManualPolygonCursor = false;
+    bool m_eraserMode = false;
+    bool m_erasing = false;
+    bool m_ignoreMaskVisible = true;
+    qreal m_eraserDiameter = 50.0;
+    QVector<QPointF> m_eraserStroke;
     bool m_hasMouseImagePos = false;
     QPointF m_lastMouseImagePos;
 

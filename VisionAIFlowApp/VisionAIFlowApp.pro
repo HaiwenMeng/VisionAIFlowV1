@@ -97,7 +97,8 @@ SOURCES += \
     TrainForms/DetecForms/detecttrainingcontroller.cpp \
     TrainForms/YoloEForms/yoloetrainform.cpp \
     InferForms/DetecForms/detectioninferencecontroller.cpp \
-    AnnoForms/BaseAnnoForm/CommonSetForm.cpp
+    AnnoForms/BaseAnnoForm/CommonSetForm.cpp\
+    InferForms/SegForms/YoloeValForm.cpp\
 
 HEADERS += \
     maindlg.h \
@@ -154,7 +155,8 @@ HEADERS += \
     TrainForms/DetecForms/detecttrainingcontroller.h \
     TrainForms/YoloEForms/yoloetrainform.h \
     InferForms/DetecForms/detectioninferencecontroller.h \
-    AnnoForms/BaseAnnoForm/CommonSetForm.h
+    AnnoForms/BaseAnnoForm/CommonSetForm.h\
+    InferForms/SegForms/YoloeValForm.h\
 
 FORMS += \
     maindlg.ui \
@@ -173,7 +175,8 @@ FORMS += \
     AnnoForms/BaseAnnoForm/CommonSetForm.ui
 FORMS += \
     AnnoForms/YoloEAnnoForm/YoloeLabelForm.ui \
-    TrainForms/YoloEForms/yoloetrainform.ui
+    TrainForms/YoloEForms/yoloetrainform.ui\
+    InferForms/SegForms/YoloeValForm.ui
 
 PRE_TARGETDEPS += $$BUILDLIB/VisionAIFlowCore.lib \
                    $$BUILDLIB/PluginApi.lib \
