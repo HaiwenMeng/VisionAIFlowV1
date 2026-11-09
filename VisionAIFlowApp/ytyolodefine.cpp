@@ -2,6 +2,7 @@
 
 #include <QStringConverter>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDebug>
@@ -49,7 +50,7 @@ void YtRoiLabelSet::toSaveJson(QString Path)
     {
         return;
     }
-    if (m_SetLabeset.isEmpty() && m_SampleRole != SampleRole::Background)
+    if (m_SetLabeset.isEmpty() && m_imageLabel.isEmpty() && m_SampleRole != SampleRole::Background)
     {
         QFile::remove(QString("%1/%2.json").arg(Path).arg(m_imagePath.left(getindex)));
         return;
@@ -99,6 +100,10 @@ void YtRoiLabelSet::toSaveJson(QString Path)
     }
     jsonObject.insert("shapes", getlist);
     jsonObject.insert("sample_role", m_SampleRole == SampleRole::Background ? "background" : "labeled");
+    if (!m_imageLabel.isEmpty())
+    {
+        jsonObject.insert("image_label", m_imageLabel);
+    }
 
     //
     jsonObject.insert("imagePath", m_imagePath);
@@ -116,6 +121,7 @@ void YtRoiLabelSet::toLoadJson(QString Path)
 {
     m_NameSetLis.clear();
     m_SetLabeset.clear();
+    m_imageLabel.clear();
     m_SampleRole = SampleRole::Labeled;
     // 读取文件到QByteArray
     int getindex = m_imagePath.lastIndexOf(".");
@@ -144,6 +150,7 @@ void YtRoiLabelSet::toLoadJson(QString Path)
     }
     //
     QJsonObject jsonObject = jsonDoc.object();
+    m_imageLabel = jsonObject["image_label"].toString();
     if (jsonObject["sample_role"].toString() == "background")
     {
         m_SampleRole = SampleRole::Background;
@@ -205,6 +212,7 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
 {
     m_NameSetLis.clear();
     m_SetLabeset.clear();
+    m_imageLabel.clear();
     m_SampleRole = SampleRole::Labeled;
     // 读取文件到QByteArray
 
@@ -226,6 +234,7 @@ void YtRoiLabelSet::toLoadJsonFile(QString FileName)
     }
     //
     QJsonObject jsonObject = jsonDoc.object();
+    m_imageLabel = jsonObject["image_label"].toString();
     if (jsonObject["sample_role"].toString() == "background")
     {
         m_SampleRole = SampleRole::Background;
@@ -342,6 +351,7 @@ void YtRoiLabelSet::toClearData()
 {
     m_SetLabeset.clear();
     m_NameSetLis.clear();
+    m_imageLabel.clear();
     m_SampleRole = SampleRole::Labeled;
 }
 
@@ -2391,15 +2401,27 @@ void YtYoloSetPro::toLoadData(QString Path)
 
 void YtYoloSetPro::toSaveData(QString Path)
 {
-
-    QFile file(QString("%1/%2.json").arg(Path).arg("DefineLabel"));
-    if (!file.open(QIODevice::WriteOnly))
-    {
-
-        return;
-    }
-    // 创建一个JSON对象
+    const QString definitionPath = QString("%1/%2.json").arg(Path).arg("DefineLabel");
     QJsonObject jsonObject;
+    QFile previous(definitionPath);
+    if (previous.exists())
+    {
+        if (!previous.open(QIODevice::ReadOnly))
+        {
+            qCritical() << QString(u8"无法读取项目定义:") << definitionPath << previous.errorString();
+            return;
+        }
+        const QByteArray previousData = previous.readAll();
+        previous.close();
+        QJsonParseError error;
+        const QJsonDocument document = QJsonDocument::fromJson(previousData, &error);
+        if (error.error != QJsonParseError::NoError || !document.isObject())
+        {
+            qCritical() << QString(u8"项目定义 JSON 无效:") << definitionPath << error.errorString();
+            return;
+        }
+        jsonObject = document.object();
+    }
 
     jsonObject.insert("InfoSet", m_InfoSet);
 
@@ -2420,14 +2442,18 @@ void YtYoloSetPro::toSaveData(QString Path)
     jsonObject.insert("ClorDefine", jesarrColor);
     jsonObject.insert("UncheckedDataSheetList", uncheckedDataSheetArray);
     // 创建一个JSON文档
-    QJsonDocument jsonDoc(jsonObject);
-    // 写入到文件
-    file.write(jsonDoc.toJson(QJsonDocument::Indented));
-    file.close();
+    QSaveFile definition(definitionPath);
+    const QByteArray data = QJsonDocument(jsonObject).toJson(QJsonDocument::Indented);
+    if (!definition.open(QIODevice::WriteOnly) || definition.write(data) != data.size() || !definition.commit())
+    {
+        qCritical() << QString(u8"无法保存项目定义:") << definitionPath << definition.errorString();
+        return;
+    }
     // 生成标签文件
-    file.setFileName(QString("%1/%2.txt").arg(Path).arg("Class"));
+    QFile file(QString("%1/%2.txt").arg(Path).arg("Class"));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
+        qCritical() << QString(u8"无法保存类别文件:") << file.fileName() << file.errorString();
         return;
     }
     QTextStream out(&file);

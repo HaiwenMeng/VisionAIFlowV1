@@ -337,7 +337,8 @@ void BaseAnnoDisplayWidget::paintEvent(QPaintEvent *event)
         painter.setPen(QPen(drawColor, selected ? 3.0 : 2.0));
         QColor fillColor = baseColor;
         fillColor.setAlpha(selected ? 58 : 30);
-        painter.setBrush(annotation.shapeType == BaseAnnoShapeType::Point || annotation.shapeType == BaseAnnoShapeType::Line
+        painter.setBrush(annotation.shapeType == BaseAnnoShapeType::Point ||
+                                 annotation.shapeType == BaseAnnoShapeType::Line
                              ? Qt::NoBrush
                              : fillColor);
         if (annotation.shapeType == BaseAnnoShapeType::Circle && annotation.pointsImage.size() == 2)
@@ -495,7 +496,7 @@ void BaseAnnoDisplayWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(QPoint(m_currentWidgetPos.x(), 0), QPoint(m_currentWidgetPos.x(), height()));
     }
 
-    drawHud(&painter, display);
+    drawHud(&painter);
 }
 
 void BaseAnnoDisplayWidget::drawEmptyState(QPainter *painter)
@@ -538,33 +539,21 @@ void BaseAnnoDisplayWidget::drawCanvasBackground(QPainter *painter)
     }
 }
 
-void BaseAnnoDisplayWidget::drawHud(QPainter *painter, const QRect &display)
+void BaseAnnoDisplayWidget::drawHud(QPainter *painter)
 {
     const QString hudText = viewportStatusText();
     const QFontMetrics fontMetrics(painter->font());
     const QRect textRect = fontMetrics.boundingRect(hudText).adjusted(-10, -5, 10, 6);
-    const QRect hudRect(14, 14, qMin(width() - 28, textRect.width()), textRect.height());
+    const QRect hudRect(14,
+                        qMax(0, height() - textRect.height() - 14),
+                        qMin(width() - 28, textRect.width()),
+                        textRect.height());
 
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(10, 14, 20, 190));
     painter->drawRoundedRect(hudRect, 6, 6);
     painter->setPen(QColor(197, 210, 229));
     painter->drawText(hudRect.adjusted(8, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft, hudText);
-
-    if (!display.isEmpty())
-    {
-        const QString sizeText = QStringLiteral("%1 x %2").arg(m_image.width()).arg(m_image.height());
-        const QRect sizeBounds = fontMetrics.boundingRect(sizeText).adjusted(-10, -5, 10, 6);
-        const QRect sizeRect(display.right() - sizeBounds.width() - 10,
-                             display.bottom() - sizeBounds.height() - 10,
-                             sizeBounds.width(),
-                             sizeBounds.height());
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(10, 14, 20, 175));
-        painter->drawRoundedRect(sizeRect, 6, 6);
-        painter->setPen(QColor(197, 210, 229));
-        painter->drawText(sizeRect.adjusted(8, 0, -8, 0), Qt::AlignVCenter | Qt::AlignLeft, sizeText);
-    }
 }
 
 void BaseAnnoDisplayWidget::mousePressEvent(QMouseEvent *event)
@@ -837,12 +826,13 @@ int BaseAnnoDisplayWidget::findAnnotationAtImagePoint(const QPointF &imagePoint)
     {
         const BaseAnnoAnnotation &annotation = m_annotations.at(index);
         const QPolygonF imagePolygon = polygonForAnnotation(annotation);
-        if (annotation.shapeType == BaseAnnoShapeType::Point && !imagePolygon.isEmpty()
-            && QLineF(imagePoint, imagePolygon.first()).length() <= 8.0)
+        if (annotation.shapeType == BaseAnnoShapeType::Point && !imagePolygon.isEmpty() &&
+            QLineF(imagePoint, imagePolygon.first()).length() <= 8.0)
         {
             return index;
         }
-        if (annotation.shapeType == BaseAnnoShapeType::Line && imagePolygon.boundingRect().adjusted(-5, -5, 5, 5).contains(imagePoint))
+        if (annotation.shapeType == BaseAnnoShapeType::Line &&
+            imagePolygon.boundingRect().adjusted(-5, -5, 5, 5).contains(imagePoint))
         {
             return index;
         }

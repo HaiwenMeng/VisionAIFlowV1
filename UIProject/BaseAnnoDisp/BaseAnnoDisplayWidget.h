@@ -72,7 +72,7 @@ private:
     void emitViewportStatus();
     void drawEmptyState(QPainter *painter);
     void drawCanvasBackground(QPainter *painter);
-    void drawHud(QPainter *painter, const QRect &display);
+    void drawHud(QPainter *painter);
     bool widgetToImage(const QPoint &widgetPoint, QPointF *imagePoint) const;
     QPointF imageToWidget(const QPointF &imagePoint) const;
     QPolygonF imageToWidgetPolygon(const QPolygonF &imagePolygon) const;

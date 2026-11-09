@@ -14,12 +14,13 @@ class MainDlg;
 class ProJectForm;
 class DataSetForm;
 class TrainDataForm;
-class ValSetForm;
 class CommonSetForm;
 class MainWindow;
 class YoloeLabelForm;
+class ClassificationLabelForm;
 class YoloeTrainForm;
 class YoloeValForm;
+class YoloValForm;
 class SystemForm;
 
 class MainDlg final : public QWidget
@@ -56,12 +57,13 @@ private:
     ProJectForm *m_projectForm;
     DataSetForm *m_dataSetForm;
     TrainDataForm *m_trainDataForm;
-    ValSetForm *m_valSetForm;
     CommonSetForm *m_commonSetForm;
     MainWindow *m_semiAutoAnnoForm = nullptr;
     YoloeLabelForm *m_yoloeLabelForm = nullptr;
+    ClassificationLabelForm *m_classificationLabelForm = nullptr;
     YoloeTrainForm *m_yoloeTrainForm;
     YoloeValForm *m_yoloeValForm;
+    YoloValForm *m_yoloValForm;
     SystemForm *m_systemForm;
     QString m_taskName;
 };

@@ -55,6 +55,9 @@ INCLUDEPATH += $$PWD \
 QMAKE_CXXFLAGS += /utf-8 /wd4189 /wd4457 /wd4828 /wd4996 /wd4456 /wd4458 /wd5054 /external:W0 /external:I$$VAF_TORCH_ROOT/include /external:I$$VAF_OPENVINO_ROOT/include
 
 SOURCES += \
+    TrainForms/trainingprotocol.cpp \
+    InferForms/DetecForms/yolovalform.cpp \
+    AnnoForms/ClassForms/classificationlabelform.cpp \
     main.cpp \
     maindlg.cpp \
     projectform.cpp \
@@ -101,6 +104,9 @@ SOURCES += \
     InferForms/SegForms/YoloeValForm.cpp\
 
 HEADERS += \
+    TrainForms/trainingprotocol.h \
+    InferForms/DetecForms/yolovalform.h \
+    AnnoForms/ClassForms/classificationlabelform.h \
     maindlg.h \
     projectform.h \
     setnamedialog.h \
@@ -159,6 +165,8 @@ HEADERS += \
     InferForms/SegForms/YoloeValForm.h\
 
 FORMS += \
+    InferForms/DetecForms/yolovalform.ui \
+    AnnoForms/ClassForms/classificationlabelform.ui \
     maindlg.ui \
     projectform.ui \
     setnamedialog.ui \

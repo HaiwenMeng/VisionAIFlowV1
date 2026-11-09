@@ -1,9 +1,10 @@
 #pragma once
 
+#include <QProcess>
+#include <QTimer>
 #include <QWidget>
-
-class DataSetForm;
-class DetectTrainingController;
+#include <QJsonObject>
+#include <QStringConverter>
 
 namespace Ui
 {
@@ -17,43 +18,45 @@ class TrainDataForm final : public QWidget
 public:
     explicit TrainDataForm(QWidget *parent = nullptr);
     ~TrainDataForm() override;
-
     void toSetProcessName(const QString &setName);
     void toInitShow();
     bool isrunstate() const;
 
-    QString m_ProcessName;
-    DataSetForm *m_DataSetForm{nullptr};
-
-private slots:
-    void on_PB_RunTrain_clicked();
-    void on_PB_StopRun_clicked();
-    void on_PB_ViewPos_clicked();
-    void on_PB_EigenCamTest_clicked();
-    void on_PB_OnnxOut_clicked();
-    void on_PB_OnnxMatch_clicked();
-    void on_PB_ModeCopy_clicked();
-    void on_PB_Batch0_clicked();
-    void on_PB_Batch1_clicked();
-    void on_PB_Batch2_clicked();
-    void on_PB_Val0_clicked();
-    void on_PB_Val1_clicked();
-
 private:
-    void InitChart();
-    void RefreshPluginList();
-    void UpdatePluginUiState();
-    void SetTrainingUiState(bool running);
-    void AppendLog(const QString &message);
-    void ShowUnsupported(const QString &featureName);
-    void UpdateTaskProgress(const QString &progress);
-    QString WeightsDirectory() const;
-    QString SelectedPluginPath() const;
-    QString SelectedPluginId() const;
-    QString SelectedPluginName() const;
+    enum class Operation
+    {
+        None,
+        Training,
+        Export
+    };
+    void startTraining();
+    void stopTraining();
+    void exportOnnx();
+    void readOutput();
+    void readError();
+    void processLine(const QByteArray &line);
+    void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void setRunning(bool running);
+    void configureCharts();
+    void logMessage(const QString &message);
+    void updateProgress(const QString &progress);
+    QString outputRoot() const;
+    bool writeJson(const QString &path, const QJsonObject &value);
 
     Ui::TrainDataForm *ui;
-    DetectTrainingController *m_trainingController;
-    QString m_lastModelPath;
-    QString m_lastBestCheckpointPath;
+    QProcess *m_process;
+    QTimer m_startTimer;
+    QTimer m_cancelTimer;
+    QString m_taskName;
+    QString m_task;
+    QString m_runId;
+    QString m_runDirectory;
+    QByteArray m_pending;
+    QStringDecoder m_errorDecoder{QStringDecoder::Utf8};
+    Operation m_operation = Operation::None;
+    bool m_ready = false;
+    bool m_finished = false;
+    bool m_cancelled = false;
+    bool m_protocolError = false;
+    bool m_cancelEvent = false;
 };

@@ -1,19 +1,180 @@
 #include "mlsdprocesser.h"
 #include "datasetform.h"
+#include "taskrepository.h"
+#include "AnnoForms/ClassForms/classificationlabelform.h"
 #include "release/ui_datasetform.h"
 #include <QTreeWidgetItem>
 #include <QStyleFactory>
 #include <QFileIconProvider>
 #include <algorithm>
+#include <cmath>
 #include <random>
 #include <QtConcurrent/QtConcurrent>
 #include <QHeaderView>
 #include <QTableWidgetItem>
 #include <QStringConverter>
 #include <QThreadPool>
+#include <QSaveFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
+#include <QSet>
+#include <opencv2/imgproc.hpp>
+
+namespace
+{
+QString yamlQuoted(const QString &value)
+{
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    return QString::fromUtf8(array.mid(1, array.size() - 2));
+}
+
+bool saveYoloeImageAndMask(const QString &imagePath,
+                           const QString &imageOutput,
+                           const QString &maskOutput,
+                           const QString &jsonPath,
+                           const YtRoiLabelSet &labels,
+                           int backgroundFill,
+                           QString *errorMessage)
+{
+    QImage image(imagePath);
+    if (image.isNull() || image.width() != labels.m_imWidth || image.height() != labels.m_imHight)
+    {
+        *errorMessage = QString(u8"YOLOE图像读取失败或标注尺寸不匹配: %1").arg(imagePath);
+        return false;
+    }
+    try
+    {
+        cv::Mat mask(image.height(), image.width(), CV_8UC1, cv::Scalar(0));
+        for (int operation = 0; operation < 2; ++operation)
+        {
+            for (LabelSet label : labels.m_SetLabeset)
+            {
+                if (!label.isTrainingIgnored() || label.isIgnoreSubtract() != (operation == 1))
+                    continue;
+                std::vector<cv::Point> polygon;
+                for (const QPointF &point : label.toGetPoints())
+                {
+                    if (!std::isfinite(point.x()) || !std::isfinite(point.y()) || point.x() < 0 || point.y() < 0 ||
+                        point.x() > image.width() || point.y() > image.height())
+                    {
+                        *errorMessage = QString(u8"忽略区坐标无效: %1").arg(jsonPath);
+                        return false;
+                    }
+                    polygon.emplace_back(qRound(point.x()), qRound(point.y()));
+                }
+                if (polygon.size() < 3 || std::abs(cv::contourArea(polygon)) <= 0.0)
+                {
+                    *errorMessage = QString(u8"无效的忽略区多边形: %1").arg(jsonPath);
+                    return false;
+                }
+                cv::fillPoly(mask, std::vector<std::vector<cv::Point>>{polygon}, cv::Scalar(operation == 0 ? 255 : 0));
+            }
+        }
+        const bool highDepth = image.depth() > 32 || image.format() == QImage::Format_Grayscale16;
+        if (highDepth)
+        {
+            image = image.convertToFormat(QImage::Format_RGBA64);
+            const quint16 value = static_cast<quint16>(backgroundFill * 257);
+            for (int y = 0; y < image.height(); ++y)
+            {
+                QRgba64 *row = reinterpret_cast<QRgba64 *>(image.scanLine(y));
+                const uchar *maskRow = mask.ptr<uchar>(y);
+                for (int x = 0; x < image.width(); ++x)
+                    if (maskRow[x])
+                        row[x] = QRgba64::fromRgba64(value, value, value, 65535);
+            }
+        }
+        else
+        {
+            image = image.convertToFormat(image.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+            for (int y = 0; y < image.height(); ++y)
+            {
+                QRgb *row = reinterpret_cast<QRgb *>(image.scanLine(y));
+                const uchar *maskRow = mask.ptr<uchar>(y);
+                for (int x = 0; x < image.width(); ++x)
+                    if (maskRow[x])
+                        row[x] = qRgb(backgroundFill, backgroundFill, backgroundFill);
+            }
+        }
+        const QImage maskImage(mask.data, mask.cols, mask.rows, static_cast<int>(mask.step), QImage::Format_Grayscale8);
+        if (!image.save(imageOutput, "PNG") || !maskImage.save(maskOutput, "PNG"))
+        {
+            *errorMessage = QString(u8"保存YOLOE图像或忽略区失败: %1").arg(imagePath);
+            return false;
+        }
+    }
+    catch (const cv::Exception &error)
+    {
+        *errorMessage = QString(u8"生成YOLOE忽略区失败: %1, %2").arg(jsonPath, QString::fromUtf8(error.what()));
+        return false;
+    }
+    return true;
+}
+bool saveYoloeLabels(const QString &path,
+                     const YtRoiLabelSet &labels,
+                     const QVector<QString> &names,
+                     QString *errorMessage)
+{
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        *errorMessage = QString(u8"无法写入YOLOE标签: %1, %2").arg(path, file.errorString());
+        return false;
+    }
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+    for (LabelSet label : labels.m_SetLabeset)
+    {
+        if (label.isTrainingIgnored() || label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
+            continue;
+        const int classId = names.indexOf(label.Name);
+        const QVector<QPointF> points = label.toGetPoints();
+        if (classId < 0 || label.toGetRoiType() != LabelSet::LpolygonROI || points.size() < 3 ||
+            labels.m_imWidth <= 0 || labels.m_imHight <= 0)
+        {
+            *errorMessage = QString(u8"YOLOE目标类别或多边形无效: %1").arg(path);
+            return false;
+        }
+        double area = 0.0;
+        out << classId;
+        for (int i = 0; i < points.size(); ++i)
+        {
+            const QPointF &point = points.at(i);
+            const QPointF &next = points.at((i + 1) % points.size());
+            if (!std::isfinite(point.x()) || !std::isfinite(point.y()) || point.x() < 0 || point.y() < 0 ||
+                point.x() > labels.m_imWidth || point.y() > labels.m_imHight)
+            {
+                *errorMessage = QString(u8"YOLOE目标坐标无效: %1").arg(path);
+                return false;
+            }
+            area += point.x() * next.y() - next.x() * point.y();
+            out << ' ' << QString::number(point.x() / labels.m_imWidth, 'f', 6) << ' '
+                << QString::number(point.y() / labels.m_imHight, 'f', 6);
+        }
+        if (!std::isfinite(area) || std::abs(area) <= 0.0)
+        {
+            *errorMessage = QString(u8"YOLOE目标多边形面积无效: %1").arg(path);
+            return false;
+        }
+        out << '\n';
+    }
+    out.flush();
+    if (out.status() != QTextStream::Ok || !file.commit())
+    {
+        *errorMessage = QString(u8"保存YOLOE标签失败: %1, %2").arg(path, file.errorString());
+        return false;
+    }
+    return true;
+}
+} // namespace
+
 DataSetForm::DataSetForm(QWidget *parent) : QWidget(parent), ui(new Ui::DataSetForm)
 {
     ui->setupUi(this);
+    ui->labelBackgroundFill->setVisible(false);
+    ui->comboBackgroundFill->setVisible(false);
     ui->TW_LabeSet->verticalHeader()->setVisible(false); // 隐藏垂直表头
     ui->TW_LabeSet->horizontalHeader()->setStretchLastSection(true);
     ui->TW_LabeSet->setEditTriggers(QAbstractItemView::NoEditTriggers); // 不可编辑
@@ -49,6 +210,8 @@ void DataSetForm::toSetProcessName(QString Setname)
 void DataSetForm::setYoloEMode(bool enabled)
 {
     m_yoloEMode = enabled;
+    ui->labelBackgroundFill->setVisible(enabled);
+    ui->comboBackgroundFill->setVisible(enabled);
     if (enabled)
     {
         ui->comboBox->setCurrentIndex(2);
@@ -56,12 +219,41 @@ void DataSetForm::setYoloEMode(bool enabled)
     ui->comboBox->setEnabled(!enabled);
 }
 
+void DataSetForm::setProjectType(visionaiflow::domain::ProjectType type)
+{
+    using visionaiflow::domain::ProjectType;
+    setYoloEMode(type == ProjectType::YoloE);
+    switch (type)
+    {
+    case ProjectType::Detection:
+        m_forcedRunIndex = 0;
+        break;
+    case ProjectType::Classification:
+        m_forcedRunIndex = 3;
+        break;
+    case ProjectType::InstanceSegmentation:
+    case ProjectType::YoloE:
+        m_forcedRunIndex = 2;
+        break;
+    default:
+        m_forcedRunIndex = -1;
+        break;
+    }
+    if (m_forcedRunIndex >= 0)
+    {
+        m_DataGenRunIndex = m_forcedRunIndex;
+        ui->comboBox->setCurrentIndex(m_forcedRunIndex);
+        ui->comboBox->setEnabled(false);
+    }
+}
+
 QVector<QString> DataSetForm::trainingLabelNames() const
 {
     QVector<QString> names;
     for (const QString &name : m_YtYoloSetPro.m_NameList)
     {
-        if (!m_yoloEMode || name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0)
+        if ((!m_yoloEMode && m_DataGenRunIndex != 0 && m_DataGenRunIndex != 2) ||
+            name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0)
         {
             names.append(name);
         }
@@ -72,7 +264,11 @@ QVector<QString> DataSetForm::trainingLabelNames() const
 void DataSetForm::toInitShow()
 {
     toLoadData();
-    if (m_yoloEMode)
+    if (m_forcedRunIndex >= 0)
+    {
+        ui->comboBox->setCurrentIndex(m_forcedRunIndex);
+    }
+    else if (m_yoloEMode)
     {
         ui->comboBox->setCurrentIndex(2);
     }
@@ -93,6 +289,330 @@ QFileInfoList DataSetForm::toGetCheckedDataSheetDirList()
         }
     }
     return checkedDirList;
+}
+
+bool DataSetForm::generateClassificationData(const QFileInfoList &directories)
+{
+    const QVector<QString> names = trainingLabelNames();
+    if (names.isEmpty())
+    {
+        m_DataGenErrorMessage = QString(u8"分类项目没有类别");
+        return false;
+    }
+    QSet<QString> normalizedNames;
+    QVector<QStringList> samples(names.size());
+    QSet<QString> imageNames;
+    for (const QString &name : names)
+    {
+        if (name.isEmpty() || name == QStringLiteral(".") || name == QStringLiteral("..") ||
+            QFileInfo(name).fileName() != name ||
+            name.contains(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]"))) || name.endsWith(QLatin1Char('.')) ||
+            name.endsWith(QLatin1Char(' ')) || normalizedNames.contains(name.toCaseFolded()))
+        {
+            m_DataGenErrorMessage = QString(u8"分类类别不能作为唯一目录名称: %1").arg(name);
+            return false;
+        }
+        normalizedNames.insert(name.toCaseFolded());
+    }
+    for (const QFileInfo &directory : directories)
+    {
+        const QFileInfoList jsonFiles =
+            QDir(directory.absoluteFilePath())
+                .entryInfoList(QStringList{QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+        for (const QFileInfo &jsonInfo : jsonFiles)
+        {
+            QFile file(jsonInfo.absoluteFilePath());
+            if (!file.open(QIODevice::ReadOnly))
+            {
+                m_DataGenErrorMessage = QString(u8"无法读取分类标注: %1").arg(jsonInfo.absoluteFilePath());
+                return false;
+            }
+            QJsonParseError parseError;
+            const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+            if (parseError.error != QJsonParseError::NoError || !document.isObject())
+            {
+                m_DataGenErrorMessage = QString(u8"分类标注 JSON 无效: %1").arg(jsonInfo.absoluteFilePath());
+                return false;
+            }
+            const QJsonObject object = document.object();
+            QString label;
+            QString labelError;
+            if (!ClassificationLabelForm::readImageLabel(object, &label, &labelError))
+            {
+                m_DataGenErrorMessage = QString(u8"分类标注无效: %1: %2").arg(jsonInfo.absoluteFilePath(), labelError);
+                return false;
+            }
+            if (label.isEmpty())
+            {
+                continue;
+            }
+            const int classIndex = names.indexOf(label);
+            if (classIndex < 0)
+            {
+                m_DataGenErrorMessage = QString(u8"分类标注包含未定义类别或区域: %1").arg(jsonInfo.absoluteFilePath());
+                return false;
+            }
+            const QString imageName = object.value(QStringLiteral("imagePath")).toString();
+            const QString imagePath = QDir(directory.absoluteFilePath()).filePath(imageName);
+            const QImage image(imagePath);
+            if (imageName.isEmpty() || QFileInfo(imageName).fileName() != imageName || image.isNull() ||
+                image.width() != object.value(QStringLiteral("imageWidth")).toInt() ||
+                image.height() != object.value(QStringLiteral("imageHeight")).toInt() ||
+                imageNames.contains(imageName.toCaseFolded()))
+            {
+                m_DataGenErrorMessage = QString(u8"分类图像缺失、尺寸不符或文件名冲突: %1").arg(imagePath);
+                return false;
+            }
+            imageNames.insert(imageName.toCaseFolded());
+            samples[classIndex].append(jsonInfo.absoluteFilePath());
+        }
+    }
+    const QDir root(YtYoloDefine::toGetDataPath() + QStringLiteral("/") + m_ProcessName);
+    QStringList sortedNames;
+    for (int classIndex = 0; classIndex < names.size(); ++classIndex)
+    {
+        const QString &name = names.at(classIndex);
+        QStringList &classSamples = samples[classIndex];
+        if (classSamples.size() < 2)
+        {
+            m_DataGenErrorMessage = QString(u8"类别 %1 至少需要两张已标注图像才能划分训练和验证集").arg(name);
+            return false;
+        }
+        std::mt19937 random(static_cast<unsigned>(classIndex));
+        std::shuffle(classSamples.begin(), classSamples.end(), random);
+        const int valCount = qBound(1, qRound(classSamples.size() * 0.3), static_cast<int>(classSamples.size()) - 1);
+        for (int index = 0; index < classSamples.size(); ++index)
+        {
+            const QString jsonPath = classSamples.at(index);
+            YtRoiLabelSet labels;
+            labels.toLoadJsonFile(jsonPath);
+            const QString split = index < valCount ? QStringLiteral("val") : QStringLiteral("train");
+            const QString classDir = root.filePath(split + QStringLiteral("/") + name);
+            if (!QDir().mkpath(classDir))
+            {
+                m_DataGenErrorMessage = QString(u8"无法创建分类目录: %1").arg(classDir);
+                return false;
+            }
+            const QString source = QDir(QFileInfo(jsonPath).absolutePath()).filePath(labels.m_imagePath);
+            const QString destination = QDir(classDir).filePath(labels.m_imagePath);
+            if (!QFile::copy(source, destination))
+            {
+                m_DataGenErrorMessage = QString(u8"复制分类图像失败: %1 -> %2").arg(source, destination);
+                return false;
+            }
+            (index < valCount ? m_ValLabelSetfilename[classIndex] : m_TrainLabelSetfilename[classIndex])
+                .append(jsonPath);
+        }
+        sortedNames.append(name);
+    }
+    std::sort(sortedNames.begin(),
+              sortedNames.end(),
+              [](const QString &left, const QString &right)
+              {
+                  const auto leftCodePoints = left.toUcs4();
+                  const auto rightCodePoints = right.toUcs4();
+                  return std::lexicographical_compare(leftCodePoints.cbegin(),
+                                                      leftCodePoints.cend(),
+                                                      rightCodePoints.cbegin(),
+                                                      rightCodePoints.cend());
+              });
+    QJsonArray classMapping;
+    for (const QString &name : sortedNames)
+    {
+        classMapping.append(name);
+    }
+    QSaveFile mapping(root.filePath(QStringLiteral("classes.json")));
+    const QByteArray bytes = QJsonDocument(classMapping).toJson(QJsonDocument::Indented);
+    if (!mapping.open(QIODevice::WriteOnly) || mapping.write(bytes) != bytes.size() || !mapping.commit())
+    {
+        m_DataGenErrorMessage = QString(u8"无法写入分类类别映射: %1").arg(mapping.fileName());
+        return false;
+    }
+    return true;
+}
+
+bool DataSetForm::generateYoloData(const QFileInfoList &directories, int runIndex)
+{
+    const QVector<QString> names = trainingLabelNames();
+    if (names.isEmpty())
+    {
+        m_DataGenErrorMessage = QString(u8"项目没有目标类别");
+        return false;
+    }
+    QStringList samples;
+    for (const QFileInfo &directory : directories)
+    {
+        const QFileInfoList files = QDir(directory.absoluteFilePath())
+                                        .entryInfoList(QStringList{QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+        for (const QFileInfo &file : files)
+        {
+            if (file.fileName() != QStringLiteral("DefineLabel.json"))
+            {
+                samples.append(file.absoluteFilePath());
+            }
+        }
+    }
+    if (samples.size() < 2)
+    {
+        m_DataGenErrorMessage = QString(u8"至少需要两张标注图像才能划分训练和验证集");
+        return false;
+    }
+    std::mt19937 random(0);
+    std::shuffle(samples.begin(), samples.end(), random);
+    const int valCount = qBound(1, qRound(samples.size() * 0.3), static_cast<int>(samples.size()) - 1);
+    const QDir root(YtYoloDefine::toGetDataPath() + QStringLiteral("/") + m_ProcessName);
+    QSet<QString> stems;
+    for (int index = 0; index < samples.size(); ++index)
+    {
+        const QString jsonPath = samples.at(index);
+        QFile sourceJson(jsonPath);
+        if (!sourceJson.open(QIODevice::ReadOnly))
+        {
+            m_DataGenErrorMessage = QString(u8"无法读取标注: %1").arg(jsonPath);
+            return false;
+        }
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(sourceJson.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        {
+            m_DataGenErrorMessage = QString(u8"标注 JSON 无效: %1").arg(jsonPath);
+            return false;
+        }
+        const QJsonObject object = document.object();
+        const QJsonArray shapes = object.value(QStringLiteral("shapes")).toArray();
+        const QString imageName = object.value(QStringLiteral("imagePath")).toString();
+        const QString source = QDir(QFileInfo(jsonPath).absolutePath()).filePath(imageName);
+        const QImage image(source);
+        const QString stem = QFileInfo(imageName).completeBaseName();
+        if (imageName.isEmpty() || QFileInfo(imageName).fileName() != imageName || image.isNull() ||
+            image.width() != object.value(QStringLiteral("imageWidth")).toInt() ||
+            image.height() != object.value(QStringLiteral("imageHeight")).toInt() || stem.isEmpty() ||
+            stems.contains(stem.toCaseFolded()))
+        {
+            m_DataGenErrorMessage = QString(u8"图像缺失、尺寸不符或名称冲突: %1").arg(source);
+            return false;
+        }
+        stems.insert(stem.toCaseFolded());
+        bool background = object.value(QStringLiteral("sample_role")).toString() == QStringLiteral("background");
+        for (const QJsonValue &value : shapes)
+        {
+            background |= value.toObject()
+                              .value(QStringLiteral("label"))
+                              .toString()
+                              .compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0;
+        }
+        const QString split = index < valCount ? QStringLiteral("val") : QStringLiteral("train");
+        const QString imageDir = root.filePath(split + QStringLiteral("/images"));
+        const QString labelDir = root.filePath(split + QStringLiteral("/labels"));
+        if (!QDir().mkpath(imageDir) || !QDir().mkpath(labelDir))
+        {
+            m_DataGenErrorMessage = QString(u8"无法创建数据集目录: %1").arg(root.path());
+            return false;
+        }
+        const QString destination = QDir(imageDir).filePath(imageName);
+        QSaveFile labelFile(QDir(labelDir).filePath(stem + QStringLiteral(".txt")));
+        if (!labelFile.open(QIODevice::WriteOnly | QIODevice::Text))
+        {
+            m_DataGenErrorMessage = QString(u8"无法写入标签: %1").arg(labelFile.fileName());
+            return false;
+        }
+        QTextStream out(&labelFile);
+        out.setEncoding(QStringConverter::Utf8);
+        int targetCount = 0;
+        QSet<int> classes;
+        for (const QJsonValue &value : shapes)
+        {
+            const QJsonObject shape = value.toObject();
+            const QString label = shape.value(QStringLiteral("label")).toString();
+            if (shape.value(QStringLiteral("training_role")).toString() == QStringLiteral("ignore"))
+            {
+                m_DataGenErrorMessage = QString(u8"标准 YOLO 数据集不接受忽略区: %1").arg(jsonPath);
+                return false;
+            }
+            if (label.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
+            {
+                continue;
+            }
+            const int classIndex = names.indexOf(label);
+            const QString expectedShape = runIndex == 0 ? QStringLiteral("rectangle") : QStringLiteral("polygon");
+            const QJsonArray points = shape.value(QStringLiteral("points")).toArray();
+            if (classIndex < 0 || shape.value(QStringLiteral("shape_type")).toString() != expectedShape ||
+                points.size() < (runIndex == 0 ? 4 : 3) || background)
+            {
+                m_DataGenErrorMessage = QString(u8"目标类别、形状或背景状态无效: %1").arg(jsonPath);
+                return false;
+            }
+            QVector<QPointF> polygon;
+            for (const QJsonValue &pointValue : points)
+            {
+                const QJsonArray point = pointValue.toArray();
+                if (point.size() != 2 || !point.at(0).isDouble() || !point.at(1).isDouble())
+                {
+                    m_DataGenErrorMessage = QString(u8"目标坐标无效: %1").arg(jsonPath);
+                    return false;
+                }
+                const double x = point.at(0).toDouble();
+                const double y = point.at(1).toDouble();
+                if (!std::isfinite(x) || !std::isfinite(y) || x < 0 || y < 0 || x > image.width() || y > image.height())
+                {
+                    m_DataGenErrorMessage = QString(u8"目标坐标超出图像范围: %1").arg(jsonPath);
+                    return false;
+                }
+                polygon.append(QPointF(x, y));
+            }
+            double area = 0.0;
+            double minX = image.width(), minY = image.height(), maxX = 0, maxY = 0;
+            for (int pointIndex = 0; pointIndex < polygon.size(); ++pointIndex)
+            {
+                const QPointF &point = polygon.at(pointIndex);
+                const QPointF &next = polygon.at((pointIndex + 1) % polygon.size());
+                area += point.x() * next.y() - next.x() * point.y();
+                minX = qMin(minX, point.x());
+                minY = qMin(minY, point.y());
+                maxX = qMax(maxX, point.x());
+                maxY = qMax(maxY, point.y());
+            }
+            if (std::abs(area) <= 0.0 || maxX <= minX || maxY <= minY)
+            {
+                m_DataGenErrorMessage = QString(u8"目标面积无效: %1").arg(jsonPath);
+                return false;
+            }
+            out << classIndex;
+            if (runIndex == 0)
+            {
+                out << ' ' << (minX + maxX) / (2 * image.width()) << ' ' << (minY + maxY) / (2 * image.height()) << ' '
+                    << (maxX - minX) / image.width() << ' ' << (maxY - minY) / image.height();
+            }
+            else
+            {
+                for (const QPointF &point : polygon)
+                {
+                    out << ' ' << point.x() / image.width() << ' ' << point.y() / image.height();
+                }
+            }
+            out << '\n';
+            classes.insert(classIndex);
+            ++targetCount;
+        }
+        if (!background && targetCount == 0)
+        {
+            m_DataGenErrorMessage = QString(u8"普通样本没有目标: %1").arg(jsonPath);
+            return false;
+        }
+        out.flush();
+        if (out.status() != QTextStream::Ok || !labelFile.commit() || !QFile::copy(source, destination))
+        {
+            m_DataGenErrorMessage = QString(u8"保存数据集图像或标签失败: %1").arg(source);
+            return false;
+        }
+        for (int classIndex : classes)
+        {
+            const int displayIndex = m_YtYoloSetPro.m_NameList.indexOf(names.at(classIndex));
+            (index < valCount ? m_ValLabelSetfilename[displayIndex] : m_TrainLabelSetfilename[displayIndex])
+                .append(jsonPath);
+        }
+    }
+    return true;
 }
 void DataSetForm::toProDataGet(bool isadd)
 {
@@ -134,23 +654,36 @@ void DataSetForm::toProDataGet(bool isadd)
         emit Sigfinish();
         return;
     }
+    if (runIndex == 3)
+    {
+        if (!generateClassificationData(getDirpp))
+        {
+            qWarning().noquote() << m_DataGenErrorMessage;
+        }
+        emit Sigfinish();
+        return;
+    }
+    if (!m_yoloEMode && (runIndex == 0 || runIndex == 2))
+    {
+        if (!generateYoloData(getDirpp, runIndex))
+        {
+            qWarning().noquote() << m_DataGenErrorMessage;
+        }
+        emit Sigfinish();
+        return;
+    }
     QDir temdir;
     qInfo() << "DataSetForm::toProDataGet run index" << runIndex;
     if (runIndex < 3)
     {
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/images");
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/labels");
-        if (m_yoloEMode)
-        {
-            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/ignore");
-            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/ignore_subtract");
-        }
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/images");
         temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/labels");
         if (m_yoloEMode)
         {
+            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/train/ignore");
             temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/ignore");
-            temdir.mkpath(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/val/ignore_subtract");
         }
     }
     else
@@ -244,13 +777,33 @@ void DataSetForm::toProDataGet(bool isadd)
 
             if (m_yoloEMode)
             {
+                const QVector<QString> labelNames = trainingLabelNames();
+                bool labelNameChanged = false;
                 for (LabelSet &label : m_YtRoiLabelSet.m_SetLabeset)
                 {
-                    if (label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0 &&
-                        !label.isTrainingIgnored())
+                    if (label.isTrainingIgnored())
+                    {
+                        continue;
+                    }
+                    if (label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) == 0)
                     {
                         m_YtRoiLabelSet.m_SampleRole = YtRoiLabelSet::SampleRole::Background;
                         continue;
+                    }
+                    if (!labelNames.contains(label.Name))
+                    {
+                        bool isClassIndex = false;
+                        const int classIndex = label.Name.toInt(&isClassIndex);
+                        if (!isClassIndex || classIndex < 0 || classIndex >= labelNames.size())
+                        {
+                            m_DataGenErrorMessage =
+                                QString(u8"YOLOE标注包含未定义类别 %1: %2").arg(label.Name, jsonPath);
+                            qWarning() << m_DataGenErrorMessage;
+                            emit Sigfinish();
+                            return;
+                        }
+                        label.Name = labelNames.at(classIndex);
+                        labelNameChanged = true;
                     }
                     if (label.toGetRoiType() != LabelSet::LpolygonROI)
                     {
@@ -258,6 +811,19 @@ void DataSetForm::toProDataGet(bool isadd)
                         qWarning() << m_DataGenErrorMessage;
                         emit Sigfinish();
                         return;
+                    }
+                }
+                if (labelNameChanged)
+                {
+                    m_YtRoiLabelSet.m_NameSetLis.clear();
+                    for (const LabelSet &label : m_YtRoiLabelSet.m_SetLabeset)
+                    {
+                        if (!label.isTrainingIgnored() && !label.Name.isEmpty() &&
+                            label.Name.compare(QStringLiteral("background"), Qt::CaseInsensitive) != 0 &&
+                            !m_YtRoiLabelSet.m_NameSetLis.contains(label.Name))
+                        {
+                            m_YtRoiLabelSet.m_NameSetLis.append(label.Name);
+                        }
                     }
                 }
             }
@@ -286,18 +852,28 @@ void DataSetForm::toProDataGet(bool isadd)
             if (m_YtRoiLabelSet.m_imagePath.isEmpty())
             {
                 qWarning() << "DataSetForm::toProDataGet empty imagePath" << jsonPath;
+                if (m_yoloEMode)
+                {
+                    m_DataGenErrorMessage = QString(u8"YOLOE标注缺少图像路径: %1").arg(jsonPath);
+                    emit Sigfinish();
+                    return;
+                }
                 continue;
             }
             if (!QFile::exists(imagePath))
             {
                 qWarning() << "DataSetForm::toProDataGet image missing" << jsonPath << imagePath;
+                if (m_yoloEMode)
+                {
+                    m_DataGenErrorMessage = QString(u8"YOLOE标注图像不存在: %1").arg(imagePath);
+                    emit Sigfinish();
+                    return;
+                }
                 continue;
             }
             QString datasetImagePath = imagePath;
             QString datasetLabelPath =
                 QString("%1/%2.txt").arg(temdirSave.path()).arg(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex));
-            QString datasetIgnorePath;
-            QString datasetIgnoreSubtractPath;
             QString segmentLabelDirectory = temdirSave.path();
             if (m_yoloEMode)
             {
@@ -319,20 +895,14 @@ void DataSetForm::toProDataGet(bool isadd)
                 const QString split = j < minvalval ? QStringLiteral("val") : QStringLiteral("train");
                 const QString splitDirectory =
                     QDir(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName).filePath(split);
-                datasetImagePath = QDir(splitDirectory + QStringLiteral("/images"))
-                                       .filePath(QFileInfo(m_YtRoiLabelSet.m_imagePath).fileName());
+                const QString stem = QFileInfo(m_YtRoiLabelSet.m_imagePath).completeBaseName();
+                datasetImagePath =
+                    QDir(splitDirectory + QStringLiteral("/images")).filePath(stem + QStringLiteral(".png"));
                 datasetLabelPath =
                     QDir(splitDirectory + QStringLiteral("/labels"))
                         .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
-                datasetIgnorePath =
-                    QDir(splitDirectory + QStringLiteral("/ignore"))
-                        .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
-                datasetIgnoreSubtractPath =
-                    QDir(splitDirectory + QStringLiteral("/ignore_subtract"))
-                        .filePath(m_YtRoiLabelSet.m_imagePath.left(FindexNameindex) + QStringLiteral(".txt"));
                 segmentLabelDirectory = QFileInfo(datasetLabelPath).absolutePath();
-                if (QFileInfo::exists(datasetImagePath) || QFileInfo::exists(datasetLabelPath) ||
-                    QFileInfo::exists(datasetIgnorePath) || QFileInfo::exists(datasetIgnoreSubtractPath))
+                if (QFileInfo::exists(datasetImagePath) || QFileInfo::exists(datasetLabelPath))
                 {
                     m_DataGenErrorMessage =
                         QString(u8"YOLOE数据集中存在同名文件: %1").arg(QFileInfo(datasetImagePath).fileName());
@@ -340,11 +910,18 @@ void DataSetForm::toProDataGet(bool isadd)
                     emit Sigfinish();
                     return;
                 }
-                QFile sourceImage(imagePath);
-                if (!sourceImage.copy(datasetImagePath))
+                const QString maskPath =
+                    QDir(splitDirectory + QStringLiteral("/ignore")).filePath(stem + QStringLiteral(".png"));
+                if (QFileInfo::exists(maskPath) || !saveYoloeImageAndMask(imagePath,
+                                                                          datasetImagePath,
+                                                                          maskPath,
+                                                                          jsonPath,
+                                                                          m_YtRoiLabelSet,
+                                                                          m_backgroundFill,
+                                                                          &m_DataGenErrorMessage))
                 {
-                    m_DataGenErrorMessage = QString(u8"复制YOLOE数据集图像失败: %1 -> %2, %3")
-                                                .arg(imagePath, datasetImagePath, sourceImage.errorString());
+                    if (m_DataGenErrorMessage.isEmpty())
+                        m_DataGenErrorMessage = QString(u8"YOLOE忽略区文件已存在: %1").arg(maskPath);
                     qWarning() << m_DataGenErrorMessage;
                     emit Sigfinish();
                     return;
@@ -361,7 +938,22 @@ void DataSetForm::toProDataGet(bool isadd)
             }
             else if (runIndex == 2)
             {
-                m_YtRoiLabelSet.toSaveSegTxt(segmentLabelDirectory, trainingLabelNames());
+                if (m_yoloEMode)
+                {
+                    if (!saveYoloeLabels(datasetLabelPath,
+                                         m_YtRoiLabelSet,
+                                         trainingLabelNames(),
+                                         &m_DataGenErrorMessage))
+                    {
+                        qWarning() << m_DataGenErrorMessage;
+                        emit Sigfinish();
+                        return;
+                    }
+                }
+                else
+                {
+                    m_YtRoiLabelSet.toSaveSegTxt(segmentLabelDirectory, trainingLabelNames());
+                }
                 if (m_yoloEMode && !QFileInfo::exists(datasetLabelPath))
                 {
                     m_DataGenErrorMessage = QString(u8"生成YOLOE分割标签失败: %1").arg(datasetLabelPath);
@@ -375,24 +967,6 @@ void DataSetForm::toProDataGet(bool isadd)
                     qWarning() << m_DataGenErrorMessage << jsonPath;
                     emit Sigfinish();
                     return;
-                }
-                if (m_yoloEMode)
-                {
-                    QString ignoreError;
-                    if (!m_YtRoiLabelSet.toSaveIgnoreSegTxt(datasetIgnorePath, &ignoreError))
-                    {
-                        m_DataGenErrorMessage = ignoreError;
-                        qWarning() << m_DataGenErrorMessage << jsonPath;
-                        emit Sigfinish();
-                        return;
-                    }
-                    if (!m_YtRoiLabelSet.toSaveIgnoreSubtractSegTxt(datasetIgnoreSubtractPath, &ignoreError))
-                    {
-                        m_DataGenErrorMessage = ignoreError;
-                        qWarning() << m_DataGenErrorMessage << jsonPath;
-                        emit Sigfinish();
-                        return;
-                    }
                 }
             }
             else if (runIndex == 3)
@@ -779,49 +1353,49 @@ void DataSetForm::toSaveData(int changele, bool datapp)
     QFile file(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/LablData.data");
     if (!file.open(QIODevice::WriteOnly))
     {
+        m_DataGenErrorMessage = QString(u8"无法写入数据集信息: %1, %2").arg(file.fileName(), file.errorString());
         return;
     }
     QDataStream out(&file);
 
     out << m_BackGroundJsonfilename << m_TrainLabelSetfilename << m_ValLabelSetfilename << ui->comboBox->currentIndex();
 
+    if (out.status() != QDataStream::Ok || !file.flush())
+    {
+        m_DataGenErrorMessage = QString(u8"写入数据集信息失败: %1, %2").arg(file.fileName(), file.errorString());
+        return;
+    }
     file.close();
     // 尝试存储yml文件
     QFile filet(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/Config.yaml");
     if (!filet.open(QIODevice::WriteOnly | QIODevice::Text))
     {
+        m_DataGenErrorMessage = QString(u8"无法写入数据配置: %1").arg(filet.fileName());
         return;
     }
     QTextStream outt(&filet);
     outt.setEncoding(QStringConverter::Utf8);
 
-    outt << QString("path: %1/").arg(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName) << "\n";
-    outt << QString("train: %1").arg("train") << "\n";
-    outt << QString("val: %1").arg("val") << "\n";
-    if (m_yoloEMode)
-    {
-        outt << "ignore:"
-             << "\n";
-        outt << "  train: train/ignore"
-             << "\n";
-        outt << "  val: val/ignore"
-             << "\n";
-        outt << "ignore_subtract:"
-             << "\n";
-        outt << "  train: train/ignore_subtract"
-             << "\n";
-        outt << "  val: val/ignore_subtract"
-             << "\n";
-    }
-
+    outt << QStringLiteral("path: ") << yamlQuoted(YtYoloDefine::toGetDataPath() + "/" + m_ProcessName) << "\n";
+    outt << QString("train: %1")
+                .arg(m_yoloEMode || m_DataGenRunIndex < 3 ? QStringLiteral("train/images") : QStringLiteral("train"))
+         << "\n";
+    outt << QString("val: %1").arg(m_yoloEMode || m_DataGenRunIndex < 3 ? QStringLiteral("val/images")
+                                                                        : QStringLiteral("val"))
+         << "\n";
     outt << "names:"
          << "\n";
     const QVector<QString> names = trainingLabelNames();
     for (int i = 0; i < names.size(); i++)
     {
-        outt << QString("  %1: %2").arg(i).arg(names.at(i)) << "\n";
+        outt << QString("  %1: %2").arg(i).arg(yamlQuoted(names.at(i))) << "\n";
     }
     outt << QString("channels: %1").arg(changele) << "\n";
+    if (m_yoloEMode)
+    {
+        outt << "ignore:\n  train: train/ignore\n  val: val/ignore\n";
+        outt << "background_fill: " << m_backgroundFill << "\n";
+    }
     if (datapp)
     {
         outt << "augment:"
@@ -837,6 +1411,9 @@ void DataSetForm::toSaveData(int changele, bool datapp)
         outt << QString("  %1: %2").arg("shear").arg(0.1) << "\n";
         outt << QString("  %1: %2").arg("perspective").arg(0.1) << "\n";
     }
+    outt.flush();
+    if (outt.status() != QTextStream::Ok || filet.error() != QFileDevice::NoError)
+        m_DataGenErrorMessage = QString(u8"写入数据配置失败: %1").arg(filet.fileName());
     filet.close();
     // 保存keys
     if (m_GetKeys.size() < 1)
@@ -865,6 +1442,7 @@ void DataSetForm::toLoadData()
     m_BackGroundJsonfilename.clear();
     m_TrainLabelSetfilename.clear();
     m_ValLabelSetfilename.clear();
+    m_loadedRunIndex = -1;
 
     const QString dataFilePath = YtYoloDefine::toGetDataPath() + "/" + m_ProcessName + "/LablData.data";
     QFile file(dataFilePath);
@@ -897,6 +1475,7 @@ void DataSetForm::toLoadData()
     m_BackGroundJsonfilename = backGroundJsonfilename;
     m_TrainLabelSetfilename = trainLabelSetfilename;
     m_ValLabelSetfilename = valLabelSetfilename;
+    m_loadedRunIndex = value;
     ui->comboBox->setCurrentIndex(value);
     qInfo() << "DataSetForm::toLoadData loaded" << dataFilePath << "train groups" << m_TrainLabelSetfilename.size()
             << "val groups" << m_ValLabelSetfilename.size() << "run index" << value;
@@ -915,13 +1494,35 @@ QString DataSetForm::toGetRunType()
 int DataSetForm::toGetRunIndex()
 {
     toLoadData();
-    if (m_yoloEMode)
+    if (m_forcedRunIndex >= 0 && m_loadedRunIndex != m_forcedRunIndex)
+    {
+        return -1;
+    }
+    if (m_forcedRunIndex >= 0)
+    {
+        ui->comboBox->setCurrentIndex(m_forcedRunIndex);
+    }
+    else if (m_yoloEMode)
     {
         ui->comboBox->setCurrentIndex(2);
     }
     if (m_TrainLabelSetfilename.size() < 1)
     {
         return -1;
+    }
+    if (!m_yoloEMode && m_forcedRunIndex >= 0)
+    {
+        const QDir root(YtYoloDefine::toGetDataPath() + QStringLiteral("/") + m_ProcessName);
+        if (m_forcedRunIndex == 3 && !QFileInfo(root.filePath(QStringLiteral("classes.json"))).isFile())
+        {
+            return -1;
+        }
+        if ((m_forcedRunIndex == 0 || m_forcedRunIndex == 2) &&
+            (QDir(root.filePath(QStringLiteral("train/images"))).entryList(QDir::Files).isEmpty() ||
+             QDir(root.filePath(QStringLiteral("val/images"))).entryList(QDir::Files).isEmpty()))
+        {
+            return -1;
+        }
     }
     return ui->comboBox->currentIndex();
 }
@@ -962,7 +1563,9 @@ void DataSetForm::on_PB_RunDataGen_clicked()
     }
     // toProDataGet();
     m_DataGenErrorMessage.clear();
-    m_DataGenRunIndex = m_yoloEMode ? 2 : ui->comboBox->currentIndex();
+    m_backgroundFill = QVector<int>{0, 128, 255}.at(ui->comboBackgroundFill->currentIndex());
+    ui->comboBackgroundFill->setEnabled(false);
+    m_DataGenRunIndex = m_forcedRunIndex >= 0 ? m_forcedRunIndex : (m_yoloEMode ? 2 : ui->comboBox->currentIndex());
     qInfo() << "DataSetForm::on_PB_RunDataGen_clicked start"
             << "process" << m_ProcessName << "run index" << m_DataGenRunIndex;
     m_GetKeys.clear();
@@ -1039,14 +1642,38 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
 void DataSetForm::slotFinish()
 {
     m_ShowProcessForm.close();
+    ui->comboBackgroundFill->setEnabled(true);
     if (!m_DataGenErrorMessage.isEmpty())
     {
+        QString error;
+        if (!TaskRepository::UpdateProgress(m_ProcessName, QStringLiteral("data_failed"), &error))
+        {
+            qWarning().noquote() << error;
+        }
         QMessageBox::warning(0, u8"警告", m_DataGenErrorMessage, u8"确定");
         m_DataGenErrorMessage.clear();
         return;
     }
     toShowData();
     toSaveData();
+    if (!m_DataGenErrorMessage.isEmpty())
+    {
+        QString error;
+        if (!TaskRepository::UpdateProgress(m_ProcessName, QStringLiteral("data_failed"), &error))
+        {
+            qWarning().noquote() << error;
+        }
+        QMessageBox::warning(this, QString(u8"警告"), m_DataGenErrorMessage);
+        m_DataGenErrorMessage.clear();
+        return;
+    }
+    QString error;
+    if (!TaskRepository::UpdateProgress(m_ProcessName, QStringLiteral("dataset_ready"), &error))
+    {
+        qWarning().noquote() << error;
+        QMessageBox::warning(this, QString(u8"警告"), error);
+        return;
+    }
     QMessageBox::about(0, u8"提示", u8"数据生成完成!");
 }
 void DataSetForm::on_PB_RunDataAppend_clicked()

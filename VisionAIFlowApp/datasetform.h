@@ -5,6 +5,7 @@
 #include "ytyolodefine.h"
 #include <QTreeWidgetItem>
 #include "showprocessform.h"
+#include "visionaiflow/domain/ProjectType.h"
 namespace Ui
 {
 class DataSetForm;
@@ -22,14 +23,14 @@ private:
     Ui::DataSetForm *ui;
 
 public:
-    QString m_ProcessName; //项目处理名称
+    QString m_ProcessName; // 项目处理名称
 public:
-    YtYoloSetPro m_YtYoloSetPro;                   //读取标签
-    YtRoiLabelSet m_YtRoiLabelSet;                 //标签数据
-    QVector<QStringList> m_TrainLabelSetfilename;  //按照类别进行文件存储
-    QVector<QStringList> m_ValLabelSetfilename;    //按照类别进行文件存储
-    QVector<QStringList> m_BackGroundJsonfilename; //按照类别进行文件存储json
-    QStringList m_BackGroudImgname;                //存储全部BG_IMG的path
+    YtYoloSetPro m_YtYoloSetPro;                   // 读取标签
+    YtRoiLabelSet m_YtRoiLabelSet;                 // 标签数据
+    QVector<QStringList> m_TrainLabelSetfilename;  // 按照类别进行文件存储
+    QVector<QStringList> m_ValLabelSetfilename;    // 按照类别进行文件存储
+    QVector<QStringList> m_BackGroundJsonfilename; // 按照类别进行文件存储json
+    QStringList m_BackGroudImgname;                // 存储全部BG_IMG的path
     QString m_DataGenErrorMessage;
     int m_DataGenRunIndex = 0;
     YtSetShowtObj m_OverPlayShow;
@@ -39,19 +40,25 @@ public:
 public:
     void toSetProcessName(QString Setname);
     void setYoloEMode(bool enabled);
+    void setProjectType(visionaiflow::domain::ProjectType type);
     void toInitShow();
     QFileInfoList toGetCheckedDataSheetDirList();
 
-    void toProDataGet(bool isadd = false); //生成数据
+    void toProDataGet(bool isadd = false); // 生成数据
     void toShowData();
-    void toSaveData(int changele = 3, bool datapp = false); //存储序列化文件
-    void toLoadData();                                      //读取序列化文件
-    QString toGetRunType();                                 //给出训练类别
+    void toSaveData(int changele = 3, bool datapp = false); // 存储序列化文件
+    void toLoadData();                                      // 读取序列化文件
+    QString toGetRunType();                                 // 给出训练类别
     int toGetRunIndex();
 
 private:
     QVector<QString> trainingLabelNames() const;
+    bool generateClassificationData(const QFileInfoList &directories);
+    bool generateYoloData(const QFileInfoList &directories, int runIndex);
     bool m_yoloEMode = false;
+    int m_backgroundFill = 128;
+    int m_forcedRunIndex = -1;
+    int m_loadedRunIndex = -1;
 private slots:
     void on_PB_RunDataGen_clicked();
     void on_PB_ViewPos_clicked();

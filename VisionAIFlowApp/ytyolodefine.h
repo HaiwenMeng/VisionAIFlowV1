@@ -27,7 +27,7 @@
  *
  *
 */
-//获取点集的外包轮廓
+// 获取点集的外包轮廓
 CMvRect toGetPointS(QVector<CMvPoint> GetPos);
 
 CMvRotatedRect toGetPRota(QVector<CMvPoint> GetPos);
@@ -48,19 +48,19 @@ struct LabelSet
 
     enum LROIShape
     {
-        LcircleROI = 0,          //圆形ROI
-        LellipseROI = 1,         //椭圆ROI
-        LrectangleROI = 2,       //矩形ROI
-        LrotaterectangleROI = 3, //旋转矩形ROI
-        LlineSegCabROI = 4,      //直线ROI卡尺
-        LarcROI = 5,             //弧形ROI
-        LringROI = 6,            //圆环ROI
-        LpolygonROI = 7,         //多边形ROI
-        LwaistROI = 8,           //腰形ROI
-        LpieROI = 9,             //扇形ROI
-        LpointROI = 10,          //点ROI
-        LpolygonROIE = 11,       //多边ROI,非循环点集
-        LlineSegROI = 12,        //线段
+        LcircleROI = 0,          // 圆形ROI
+        LellipseROI = 1,         // 椭圆ROI
+        LrectangleROI = 2,       // 矩形ROI
+        LrotaterectangleROI = 3, // 旋转矩形ROI
+        LlineSegCabROI = 4,      // 直线ROI卡尺
+        LarcROI = 5,             // 弧形ROI
+        LringROI = 6,            // 圆环ROI
+        LpolygonROI = 7,         // 多边形ROI
+        LwaistROI = 8,           // 腰形ROI
+        LpieROI = 9,             // 扇形ROI
+        LpointROI = 10,          // 点ROI
+        LpolygonROIE = 11,       // 多边ROI,非循环点集
+        LlineSegROI = 12,        // 线段
     };
     QString Name;
     QString RoiData; // Roi数据，用于显示
@@ -78,7 +78,7 @@ struct LabelSet
         return isTrainingIgnored() && ignoreOperation == IgnoreOperation::Subtract;
     }
 
-    //反解析数据
+    // 反解析数据
     QVector<double> toGetRoiData()
     {
         QVector<double> temdata;
@@ -93,7 +93,7 @@ struct LabelSet
     {
         return Name;
     }
-    //解析类型
+    // 解析类型
     int toGetRoiType()
     {
         QStringList setlis;
@@ -113,7 +113,7 @@ struct LabelSet
         }
         return LrectangleROI;
     }
-    //内部的点数据
+    // 内部的点数据
     QVector<QPointF> toGetPoints()
     {
         QVector<QPointF> OutPoints;
@@ -123,7 +123,7 @@ struct LabelSet
         {
             CMvRect temdata;
             temdata.GetData(toGetRoiData());
-            //获取四个点
+            // 获取四个点
             OutPoints << QPointF(temdata.LeftTop.x, temdata.LeftTop.y)
                       << QPointF(temdata.LeftTop.x + temdata.cx, temdata.LeftTop.y)
                       << QPointF(temdata.LeftTop.x + temdata.cx, temdata.LeftTop.y + temdata.cy)
@@ -218,7 +218,7 @@ struct LabelSet
         }
         return true;
     }
-    //反序列化
+    // 反序列化
     bool toInitData(QString SetName, QString RoiShape, QVector<QPointF> SetPoints, double tdirection = 0)
     {
         // QString Name;
@@ -254,7 +254,7 @@ struct LabelSet
             }
 
             CMvRotatedRect temdata;
-            //怎么解析 再说
+            // 怎么解析 再说
             temdata.angle = 360 - tdirection / MV_PI * 180;
             //
             temdata.Center.x = (SetPoints[0].x() + SetPoints[1].x() + SetPoints[2].x() + SetPoints[3].x()) / 4;
@@ -359,6 +359,7 @@ public:
     int m_imWidth;
     int m_imHight;
     QString m_imagePath; // 图象名称，
+    QString m_imageLabel;
     QStringList m_NameSetLis;
     SampleRole m_SampleRole = SampleRole::Labeled;
 
@@ -421,44 +422,44 @@ public:
     void toSetImSize(QSize ImSize = QSize(640, 640));
     QSize toGetImSize();
     void toSetFileName(QString filename);
-    QString toGetFileName(); //去除尾缀
+    QString toGetFileName(); // 去除尾缀
 };
 
-//这是一个静态类，用于提供一些常规变量管理的处理
+// 这是一个静态类，用于提供一些常规变量管理的处理
 class YtYoloDefine
 {
-    //对于xlabel 可以选到次级目录
+    // 对于xlabel 可以选到次级目录
 public:
-    //这里数据就用json 管理
-    //获取工作目录
+    // 这里数据就用json 管理
+    // 获取工作目录
     static QString toGetWorkPath();
-    //设置工作目录
+    // 设置工作目录
     static void toSetWorkPath(QString WorkPath);
 
-    //获取Python工作目录
+    // 获取Python工作目录
     static QString toGetPythonPath();
-    //设置Python工作目录
+    // 设置Python工作目录
     static bool toSetPythonPath(QString PythPath);
 
     //
-    //定义几个目录的地址
+    // 定义几个目录的地址
     static QString toGetLabelPath();
     static QString toGetDataPath();
     static QString toGetTrainPath();
     static QString toGetValuePath();
-    //定义几个常规函数,获取子目录下的文件夹
+    // 定义几个常规函数,获取子目录下的文件夹
     static QFileInfoList toGetPathDirInfo(QString Path);
-    //获取目录下指定格式的文件
+    // 获取目录下指定格式的文件
     static QFileInfoList toGetPathFileInfo(QString Path, QStringList FilterName);
-    //获取目录下指定格式的文件,这个文件夹两个格式的文件都存在，还是存在1不存在2的判断
+    // 获取目录下指定格式的文件,这个文件夹两个格式的文件都存在，还是存在1不存在2的判断
     static QFileInfoList
     toGetPathSpecialFileInfo(QString Path, QStringList FilterName1, QString FilterName2, bool isexit = true);
-    //写系统steting
+    // 写系统steting
     static void toSaveSetting(QString WorkingPath);
-    //看是否存在字体文件
+    // 看是否存在字体文件
     static void toProFontData();
 };
-//定义一个访问当前标注以及说明的管理类
+// 定义一个访问当前标注以及说明的管理类
 class YtYoloSetPro
 {
 public:
@@ -485,7 +486,7 @@ public:
     QVector<QString> toGetLabelName();
     QVector<QColor> toGetColorDefine();
 };
-//构造一个训练参数的
+// 构造一个训练参数的
 class ProTrainData
 {
 public:
@@ -494,17 +495,17 @@ public:
 public:
     enum YtDlType
     {
-        YtDetect,    //正矩形目标识别   0
-        YtRotateDet, //斜矩形目标识别   1 ,对应YOLO里的OBB(Oriented Bounding Box)概念
-        YtSegment,   //语义分割      2
+        YtDetect,    // 正矩形目标识别   0
+        YtRotateDet, // 斜矩形目标识别   1 ,对应YOLO里的OBB(Oriented Bounding Box)概念
+        YtSegment,   // 语义分割      2
     };
     enum YtDlSize
     {
-        Ytn, //正矩形目标识别   0
-        Yts, //斜矩形目标识别   1 ,对应YOLO里的OBB(Oriented Bounding Box)概念
-        Ytm, //语义分割      2
-        Ytl, //语义分割      2
-        Ytx, //语义分割      2
+        Ytn, // 正矩形目标识别   0
+        Yts, // 斜矩形目标识别   1 ,对应YOLO里的OBB(Oriented Bounding Box)概念
+        Ytm, // 语义分割      2
+        Ytl, // 语义分割      2
+        Ytx, // 语义分割      2
     };
 
 public:
@@ -512,23 +513,23 @@ public:
     int m_TaskType = YtDetect;
     int m_EpochNum = 100;
     int m_ImageSize = 640;
-    bool m_isMultiScal = false; //多尺度
-    bool m_Isint8 = false;      //半精度
+    bool m_isMultiScal = false; // 多尺度
+    bool m_Isint8 = false;      // 半精度
     int m_WorksThread = 8;      //
     int m_BathSize = 16;        //
-    int m_isMosick = 10;        //数据增强轮数
+    int m_isMosick = 10;        // 数据增强轮数
     int m_SetImagechgle = 1;
 
 public:
-    void toSaveData(QString SavePath); //保存json
-    void toLoadData(QString LoadPath); //读取json
+    void toSaveData(QString SavePath); // 保存json
+    void toLoadData(QString LoadPath); // 读取json
 public:
     int toGetChangle();
     QString toGetCmd();
     QString toGetTrainCmd(QString processName, QString PretrainedModelPath = "");
     QString toGeExportCmd(QString processName);
     QString toGeExportOpenVinoInt8Cmd(QString processName);
-    static bool IsJsonHasLabel(QString JsonPath, QString LabelName); //解析json
+    static bool IsJsonHasLabel(QString JsonPath, QString LabelName); // 解析json
 
     QString toGeExportCmdBatch(QString processName, int BatchSize = 4);
     QString toGetQuantCmd(QString processName);
