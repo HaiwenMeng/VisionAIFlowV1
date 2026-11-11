@@ -98,7 +98,6 @@ private slots:
     void on_comboBox_currentIndexChanged(int index);
     void on_PB_AddAnno_clicked();
     void on_PB_DrawIgnore_clicked();
-    void on_PB_ManualPolygon_toggled(bool checked);
     void on_PB_Eraser_toggled(bool checked);
     void on_spinBox_EraserSize_valueChanged(int value);
     void on_ckB_ShowMask_stateChanged(int state);

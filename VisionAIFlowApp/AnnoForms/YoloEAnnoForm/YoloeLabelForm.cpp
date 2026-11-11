@@ -244,7 +244,6 @@ QProgressDialog *toCreateSamInitDialog(QWidget *parent)
 YoloeLabelForm::YoloeLabelForm(QWidget *parent) : QWidget(parent), ui(new Ui::YoloeLabelForm)
 {
     ui->setupUi(this);
-    ui->PB_ManualPolygon->setVisible(false);
     connect(ui->CB_CurrentLabel,
             &QComboBox::currentTextChanged,
             this,
@@ -331,18 +330,10 @@ void YoloeLabelForm::setTaskName(const QString &taskName)
 void YoloeLabelForm::setIgnoreEnabled(bool enabled)
 {
     ui->PB_Eraser->setChecked(false);
-    ui->PB_ManualPolygon->setChecked(false);
     ui->PB_DrawIgnore->setVisible(enabled);
     ui->PB_Eraser->setVisible(enabled);
     ui->spinBox_EraserSize->setVisible(enabled);
     ui->ckB_ShowMask->setVisible(enabled);
-    ui->PB_ManualPolygon->setVisible(!enabled);
-    toSyncSam2PromptMode();
-}
-
-void YoloeLabelForm::on_PB_ManualPolygon_toggled(bool checked)
-{
-    Q_UNUSED(checked);
     toSyncSam2PromptMode();
 }
 
@@ -378,6 +369,7 @@ void YoloeLabelForm::toInitSam2Inference()
         {
             ui->CB_SetLabeMode->setEnabled(true);
         }
+        toSyncSam2PromptMode();
         return;
     }
 
@@ -488,7 +480,7 @@ void YoloeLabelForm::toHandleSam2Unavailable(const QString &errorMessage, bool f
     {
         if (ui->CB_SetLabeMode)
         {
-            ui->CB_SetLabeMode->setEnabled(false);
+            ui->CB_SetLabeMode->setEnabled(true);
         }
         if (ui->CB_ROIType)
         {
@@ -574,20 +566,11 @@ void YoloeLabelForm::toSyncSam2PromptMode()
 
     const bool eraserMode = ui->PB_Eraser && ui->PB_Eraser->isChecked();
     const bool samReady = m_Sam2Available && ui->YtLabelRoi->isSamReady();
-    const bool manualPolygon = !ui->PB_ManualPolygon->isHidden() && ui->PB_ManualPolygon->isChecked();
-    ui->YtLabelRoi->toSetManualPolygonMode(manualPolygon);
+    const bool manualPolygon = ui->CB_SetLabeMode->currentIndex() == 1;
+    ui->YtLabelRoi->toSetManualPolygonMode(manualPolygon && !eraserMode);
     ui->YtLabelRoi->toSetEraserMode(eraserMode);
     ui->YtLabelRoi->toSetEraserDiameter(ui->spinBox_EraserSize->value());
     ui->YtLabelRoi->toSetIgnoreMaskVisible(ui->ckB_ShowMask->isChecked());
-    if (manualPolygon)
-    {
-        ui->CB_SetLabeMode->setEnabled(false);
-        ui->CB_ROIType->setEnabled(false);
-        ui->CB_CurrentLabel->setEnabled(true);
-        ui->YtLabelRoi->toSetRoiDefaltName(ui->CB_CurrentLabel->currentText());
-        ui->YtLabelRoi->setEnabled(true);
-        return;
-    }
     if (eraserMode)
     {
         ui->CB_SetLabeMode->setEnabled(false);
@@ -597,57 +580,31 @@ void YoloeLabelForm::toSyncSam2PromptMode()
         return;
     }
 
+    ui->CB_SetLabeMode->setEnabled(true);
     ui->CB_CurrentLabel->setEnabled(true);
-    if (!samReady)
-    {
-        ui->CB_SetLabeMode->setEnabled(false);
-        ui->CB_ROIType->setEnabled(false);
-        ui->YtLabelRoi->setEnabled(false);
-    }
-    else
-    {
-        ui->CB_SetLabeMode->setCurrentIndex(0);
-        ui->CB_SetLabeMode->setEnabled(false);
-        ui->CB_ROIType->setEnabled(samReady);
-        ui->YtLabelRoi->setEnabled(true);
-    }
-
-    const bool manualBoxMode = false;
-    int roiType = LrectangleROI;
-
-    if (manualBoxMode)
-    {
-        if (ui->CB_ROIType->currentIndex() != 0)
-        {
-            ui->CB_ROIType->setCurrentIndex(0);
-        }
-        ui->CB_ROIType->setEnabled(false);
-    }
-    else
-    {
-        ui->CB_ROIType->setEnabled(true);
-        switch (ui->CB_ROIType->currentIndex())
-        {
-        case 0:
-            roiType = LrectangleROI;
-            break;
-        case 1:
-            roiType = LpointROI;
-            break;
-        default:
-            ui->CB_ROIType->setCurrentIndex(0);
-            roiType = LrectangleROI;
-            break;
-        }
-    }
-
-    ui->YtLabelRoi->toSetManualBoxMode(manualBoxMode);
-    ui->YtLabelRoi->toSetRoiDefaltType(roiType);
+    ui->CB_ROIType->setEnabled(samReady && !manualPolygon);
+    ui->YtLabelRoi->setEnabled(samReady || manualPolygon);
     ui->YtLabelRoi->toSetRoiDefaltName(ui->CB_CurrentLabel->currentText());
-    if (ui->CB_SetLabeMode->currentIndex() < 0)
+    if (manualPolygon || !samReady)
     {
-        ui->YtLabelRoi->toSetRoiDefaltName("");
+        return;
     }
+
+    int roiType = LrectangleROI;
+    switch (ui->CB_ROIType->currentIndex())
+    {
+    case 0:
+        roiType = LrectangleROI;
+        break;
+    case 1:
+        roiType = LpointROI;
+        break;
+    default:
+        ui->CB_ROIType->setCurrentIndex(0);
+        break;
+    }
+    ui->YtLabelRoi->toSetManualBoxMode(false);
+    ui->YtLabelRoi->toSetRoiDefaltType(roiType);
 }
 
 void YoloeLabelForm::toAddDataSheetItem(const QString &dataSheetName, Qt::CheckState checkState)
@@ -1133,7 +1090,6 @@ void YoloeLabelForm::on_PB_Reload_clicked()
 void YoloeLabelForm::on_CB_CurrentLabel_activated(int index)
 {
     Q_UNUSED(index);
-    ui->CB_SetLabeMode->setCurrentIndex(0);
     toSyncSam2PromptMode();
 }
 

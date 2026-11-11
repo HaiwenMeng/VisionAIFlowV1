@@ -424,15 +424,25 @@ void Sam2LabelCanvasCompat::paintEvent(QPaintEvent *event)
 
     if (m_manualPolygonMode && !m_manualPolygonPoints.isEmpty())
     {
-        toDrawPolylineByImageData(painter, m_manualPolygonPoints, QColor(190, 70, 255), imageRect, scale, false, 2);
+        QPolygonF widgetDraft;
+        for (const QPointF &point : std::as_const(m_manualPolygonPoints))
+        {
+            widgetDraft << QPointF(imageRect.left() + point.x() * scale, imageRect.top() + point.y() * scale);
+        }
+        painter.setPen(QPen(QColor(98, 210, 162), 2.0, Qt::DashLine));
+        painter.setBrush(QColor(98, 210, 162, 28));
+        painter.drawPolyline(widgetDraft);
         if (m_hasManualPolygonCursor)
         {
-            const QPointF lastPoint = m_manualPolygonPoints.constLast();
-            const QPointF lastWidget(imageRect.left() + lastPoint.x() * scale, imageRect.top() + lastPoint.y() * scale);
             const QPointF cursorWidget(imageRect.left() + m_manualPolygonCursor.x() * scale,
                                        imageRect.top() + m_manualPolygonCursor.y() * scale);
-            painter.setPen(QPen(QColor(190, 70, 255), 1, Qt::DashLine));
-            painter.drawLine(lastWidget, cursorWidget);
+            painter.drawLine(widgetDraft.last(), cursorWidget);
+        }
+        painter.setPen(QPen(QColor(8, 11, 16), 2.0));
+        painter.setBrush(QColor(98, 210, 162));
+        for (const QPointF &point : widgetDraft)
+        {
+            painter.drawEllipse(point, 4.5, 4.5);
         }
     }
 
@@ -917,6 +927,13 @@ void Sam2LabelCanvasCompat::toCommitManualRect(const QRectF &rect)
 
 void Sam2LabelCanvasCompat::toCommitManualPolygon()
 {
+    if (m_defaultLabelName.isEmpty())
+    {
+        const QString errorMessage = QString(u8"请先选择目标类别");
+        qWarning() << errorMessage;
+        emit ManualPolygonError(errorMessage);
+        return;
+    }
     QVector<QPointF> points;
     points.reserve(m_manualPolygonPoints.size());
     for (const QPointF &point : std::as_const(m_manualPolygonPoints))
