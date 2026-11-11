@@ -376,6 +376,12 @@
              </widget>
             </item>
             <item>
+             <widget class="QPushButton" name="PB_ManualPolygon">
+              <property name="text"><string>手绘多边形</string></property>
+              <property name="checkable"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item>
              <widget class="QPushButton" name="PB_DrawIgnore">
               <property name="text">
                <string>全图mask</string>

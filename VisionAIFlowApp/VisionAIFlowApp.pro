@@ -13,6 +13,7 @@ include($$VAF_ROOT/qmake/common.pri)
 
 TEMPLATE = app
 TARGET = VisionAIFlowApp
+RC_ICONS = ResourYolo/VisionAIFlow.ico
 QT += core gui widgets charts concurrent uitools core5compat
 CONFIG += c++17 release
 CONFIG -= debug_and_release debug

@@ -244,6 +244,14 @@ QProgressDialog *toCreateSamInitDialog(QWidget *parent)
 YoloeLabelForm::YoloeLabelForm(QWidget *parent) : QWidget(parent), ui(new Ui::YoloeLabelForm)
 {
     ui->setupUi(this);
+    ui->PB_ManualPolygon->setVisible(false);
+    connect(ui->CB_CurrentLabel,
+            &QComboBox::currentTextChanged,
+            this,
+            [this](const QString &name)
+            {
+                ui->YtLabelRoi->toSetRoiDefaltName(name);
+            });
     applySam2CommercialUi(ui, this);
     QShortcut *lastImageShortcut = new QShortcut(QKeySequence(Qt::Key_A), this);
     lastImageShortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -292,11 +300,11 @@ YoloeLabelForm::YoloeLabelForm(QWidget *parent) : QWidget(parent), ui(new Ui::Yo
                 toSyncHighlightedRoiFromTable(ui);
             });
     //
-    ui->LW_SetLab->verticalHeader()->setVisible(false); //���ش�ֱ��ͷ
+    ui->LW_SetLab->verticalHeader()->setVisible(false); // ���ش�ֱ��ͷ
     // ui->LW_SetLab->horizontalHeader()->setStretchLastSection(true);
-    ui->LW_SetLab->setEditTriggers(QAbstractItemView::NoEditTriggers); //���ɱ༭
+    ui->LW_SetLab->setEditTriggers(QAbstractItemView::NoEditTriggers); // ���ɱ༭
     ui->LW_SetLab->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->LW_SetLab->setSelectionBehavior(QAbstractItemView::SelectRows); //ѡ��һ��
+    ui->LW_SetLab->setSelectionBehavior(QAbstractItemView::SelectRows); // ѡ��һ��
     ui->LW_SetLab->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     toInitMenuData();
     connect(ui->LW_DataSheet, &QListWidget::itemChanged, this, &YoloeLabelForm::slotDataSheetItemChanged);
@@ -318,6 +326,24 @@ void YoloeLabelForm::setTaskName(const QString &taskName)
 {
     m_ProcessName = taskName;
     toInitProShowLabel();
+}
+
+void YoloeLabelForm::setIgnoreEnabled(bool enabled)
+{
+    ui->PB_Eraser->setChecked(false);
+    ui->PB_ManualPolygon->setChecked(false);
+    ui->PB_DrawIgnore->setVisible(enabled);
+    ui->PB_Eraser->setVisible(enabled);
+    ui->spinBox_EraserSize->setVisible(enabled);
+    ui->ckB_ShowMask->setVisible(enabled);
+    ui->PB_ManualPolygon->setVisible(!enabled);
+    toSyncSam2PromptMode();
+}
+
+void YoloeLabelForm::on_PB_ManualPolygon_toggled(bool checked)
+{
+    Q_UNUSED(checked);
+    toSyncSam2PromptMode();
 }
 
 bool YoloeLabelForm::initialize()
@@ -548,10 +574,20 @@ void YoloeLabelForm::toSyncSam2PromptMode()
 
     const bool eraserMode = ui->PB_Eraser && ui->PB_Eraser->isChecked();
     const bool samReady = m_Sam2Available && ui->YtLabelRoi->isSamReady();
-    ui->YtLabelRoi->toSetManualPolygonMode(false);
+    const bool manualPolygon = !ui->PB_ManualPolygon->isHidden() && ui->PB_ManualPolygon->isChecked();
+    ui->YtLabelRoi->toSetManualPolygonMode(manualPolygon);
     ui->YtLabelRoi->toSetEraserMode(eraserMode);
     ui->YtLabelRoi->toSetEraserDiameter(ui->spinBox_EraserSize->value());
     ui->YtLabelRoi->toSetIgnoreMaskVisible(ui->ckB_ShowMask->isChecked());
+    if (manualPolygon)
+    {
+        ui->CB_SetLabeMode->setEnabled(false);
+        ui->CB_ROIType->setEnabled(false);
+        ui->CB_CurrentLabel->setEnabled(true);
+        ui->YtLabelRoi->toSetRoiDefaltName(ui->CB_CurrentLabel->currentText());
+        ui->YtLabelRoi->setEnabled(true);
+        return;
+    }
     if (eraserMode)
     {
         ui->CB_SetLabeMode->setEnabled(false);
@@ -1063,7 +1099,7 @@ void YoloeLabelForm::on_PB_Reload_clicked()
         }
     }
 
-    //��ʾ���������Ľ��
+    // ��ʾ���������Ľ��
     if (ui->ckB_ShowResu->isChecked())
     {
         QString tImgPath = m_WorkPath + "/" + m_YtRoiLabelSet.m_imagePath;
@@ -1083,7 +1119,7 @@ void YoloeLabelForm::on_PB_Reload_clicked()
                 qDebug() << tstr;
             }
 
-            //����Ŀ��ʶ��
+            // ����Ŀ��ʶ��
             m_YtRoiLabelSet.toLoadDetcTxt(m_Txtfilename, m_GetImage.size(), m_YtYoloSetPro.m_NameList);
             m_YtRoiLabelSet.toGenDetcOveplay(m_TxtOverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
             ui->YtLabelRoi->addOverPlayPtr(&m_TxtOverPlayShow, "valRest");
@@ -1094,16 +1130,16 @@ void YoloeLabelForm::on_PB_Reload_clicked()
     m_IsaddState = false;
     toSyncHighlightedRoiFromTable(ui);
 }
-void YoloeLabelForm::on_CB_CurrentLabel_activated(const QString &arg1)
+void YoloeLabelForm::on_CB_CurrentLabel_activated(int index)
 {
-    Q_UNUSED(arg1);
+    Q_UNUSED(index);
     ui->CB_SetLabeMode->setCurrentIndex(0);
     toSyncSam2PromptMode();
 }
 
-void YoloeLabelForm::on_CB_ROIType_activated(const QString &arg1)
+void YoloeLabelForm::on_CB_ROIType_activated(int index)
 {
-    Q_UNUSED(arg1);
+    Q_UNUSED(index);
     toSyncSam2PromptMode();
 }
 
@@ -1407,7 +1443,7 @@ void YoloeLabelForm::on_PB_XLabe_clicked()
     }
     if (m_SetProcess == nullptr)
     {
-        m_SetProcess = new QProcess(this); //�������б�׼���ݣ����ݣ�
+        m_SetProcess = new QProcess(this); // �������б�׼���ݣ����ݣ�
         m_SetProcess->setProcessChannelMode(QProcess::MergedChannels);
         m_SetProcess->start("cmd.exe");
     }
@@ -1448,7 +1484,7 @@ void YoloeLabelForm::on_LW_SetLab_cellDoubleClicked(int row, int column)
         QMessageBox::information(this, QString(u8"提示"), QString(u8"训练忽略区不能重命名"));
         return;
     }
-    //�����޸ı�ǩ
+    // �����޸ı�ǩ
     ReNameDlg tDlg;
 
     tDlg.setWindowFlags(Qt::SubWindow);
@@ -1612,7 +1648,7 @@ void YoloeLabelForm::on_PB_TBConv_clicked()
 
     QString filename = m_WorkPath + "/" + m_CurentFileName;
     //
-    //��ʾͼ��
+    // ��ʾͼ��
     QImage temim = m_GetImage.mirrored(false, true);
     m_GetImage = temim;
     ui->YtLabelRoi->toSetImage(m_GetImage);
@@ -1623,7 +1659,7 @@ void YoloeLabelForm::on_PB_LRConv_clicked()
 {
     QString filename = m_WorkPath + "/" + m_CurentFileName;
     //
-    //��ʾͼ��
+    // ��ʾͼ��
     QImage temim = m_GetImage.mirrored(true, false);
     m_GetImage = temim;
     ui->YtLabelRoi->toSetImage(m_GetImage);
@@ -1661,7 +1697,7 @@ void YoloeLabelForm::on_PB_AddAnno_clicked()
             qDebug() << "removed: " << BaseName + ".json";
         }
 
-        //ˢ����ʾ
+        // ˢ����ʾ
         if (ui->LW_DataSheet->currentItem() == nullptr)
         {
             return;

@@ -52,6 +52,8 @@ private:
     QVector<QRectF> promptRects() const;
     QString promptSignature() const;
     QString currentBackbonePath() const;
+    int scaledImageSize(const QString &imagePath, QString *errorMessage) const;
+    int inferenceImageSize(bool singleImage, QString *errorMessage) const;
     bool hasCurrentVpe(QString *errorMessage) const;
     void invalidateVpe(const QString &reason);
     void refreshResultCanvas();
@@ -92,5 +94,6 @@ private:
     QString m_generatedBackbonePath;
     QString m_generatedTemplatePath;
     QString m_generatedPromptSignature;
+    double m_generatedZoomRatio = 0.0;
     bool m_errorReported = false;
 };

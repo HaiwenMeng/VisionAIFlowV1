@@ -934,7 +934,7 @@ void Sam2LabelCanvasCompat::toCommitManualPolygon()
     }
     if (points.size() < 3)
     {
-        const QString errorMessage = QString(u8"训练忽略区多边形至少需要3个不同顶点");
+        const QString errorMessage = QString(u8"多边形至少需要3个不同顶点");
         qWarning() << errorMessage;
         emit ManualPolygonError(errorMessage);
         return;
@@ -949,7 +949,7 @@ void Sam2LabelCanvasCompat::toCommitManualPolygon()
     }
     if (std::abs(twiceArea) < 2.0)
     {
-        const QString errorMessage = QString(u8"训练忽略区多边形面积必须大于0");
+        const QString errorMessage = QString(u8"多边形面积必须大于0");
         qWarning() << errorMessage;
         emit ManualPolygonError(errorMessage);
         return;

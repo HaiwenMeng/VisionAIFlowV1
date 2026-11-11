@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,6 +16,7 @@
 #include <QMessageBox>
 #include <QProcess>
 #include <QTextStream>
+#include <QtMath>
 
 #include <QStringConverter>
 
@@ -62,6 +64,13 @@ YoloeValForm::YoloeValForm(QWidget *parent) : QWidget(parent), ui(new Ui::YoloeV
     connect(ui->PB_ProValAll, &QPushButton::clicked, this, &YoloeValForm::inferAllImages);
     connect(ui->PB_ProBackboneOne, &QPushButton::clicked, this, &YoloeValForm::inferBackboneCurrentImage);
     connect(ui->PB_ProBackboneAll, &QPushButton::clicked, this, &YoloeValForm::inferBackboneImages);
+    connect(ui->DSB_ZoomRatio,
+            qOverload<double>(&QDoubleSpinBox::valueChanged),
+            this,
+            [this](double)
+            {
+                invalidateVpe(QString(u8"缩放比例已改变"));
+            });
     connect(ui->ytRoiShowVPE,
             &BaseAnnoDisplayWidget::annotationCreated,
             this,
@@ -117,6 +126,7 @@ void YoloeValForm::setTaskName(const QString &taskName)
     m_generatedBackbonePath.clear();
     m_generatedTemplatePath.clear();
     m_generatedPromptSignature.clear();
+    m_generatedZoomRatio = 0.0;
     ui->LE_Backbone->clear();
     m_resultLabels.toClearData();
     m_resultOverlay.toClearData();
@@ -191,6 +201,7 @@ void YoloeValForm::setBusy(const bool busy)
     ui->DSB_Confidence->setEnabled(!busy);
     ui->DSB_Iou->setEnabled(!busy);
     ui->spinBox_MaxDetNum->setEnabled(!busy);
+    ui->DSB_ZoomRatio->setEnabled(!busy);
     ui->LE_BackbonePrompt->setEnabled(!busy);
     ui->PB_ProBackboneOne->setEnabled(!busy);
     ui->PB_ProBackboneAll->setEnabled(!busy);
@@ -402,6 +413,73 @@ QString YoloeValForm::currentBackbonePath() const
     return normalizedExistingPath(modelPath);
 }
 
+int YoloeValForm::scaledImageSize(const QString &imagePath, QString *errorMessage) const
+{
+    QImageReader reader(imagePath);
+    const QSize imageSize = reader.size();
+    if (!imageSize.isValid())
+    {
+        *errorMessage = QString(u8"无法读取图像尺寸: %1, %2").arg(imagePath, reader.errorString());
+        return 0;
+    }
+
+    const double zoomRatio = ui->DSB_ZoomRatio->value();
+    if (zoomRatio <= 0.0 || zoomRatio > 1.0)
+    {
+        *errorMessage = QString(u8"缩放比例必须大于0且不超过1");
+        return 0;
+    }
+
+    const int scaledSize = qRound(qMax(imageSize.width(), imageSize.height()) * zoomRatio);
+    if (scaledSize < 32)
+    {
+        *errorMessage = QString(u8"图像按缩放比例处理后的长边不能小于32: %1").arg(imagePath);
+        return 0;
+    }
+    return ((scaledSize + 31) / 32) * 32;
+}
+
+int YoloeValForm::inferenceImageSize(const bool singleImage, QString *errorMessage) const
+{
+    QStringList imagePaths;
+    if (singleImage)
+    {
+        if (ui->listWidget->currentItem() == nullptr)
+        {
+            *errorMessage = QString(u8"请先在图像列表中选择一张图片");
+            return 0;
+        }
+        imagePaths.append(ui->listWidget->currentItem()->text());
+    }
+    else
+    {
+        for (int index = 0; index < ui->listWidget->count(); ++index)
+        {
+            imagePaths.append(ui->listWidget->item(index)->text());
+        }
+    }
+
+    int commonImageSize = 0;
+    for (const QString &imagePath : imagePaths)
+    {
+        const int imageSize = scaledImageSize(imagePath, errorMessage);
+        if (imageSize <= 0)
+        {
+            return 0;
+        }
+        if (commonImageSize == 0)
+        {
+            commonImageSize = imageSize;
+        }
+        else if (commonImageSize != imageSize)
+        {
+            *errorMessage = QString(u8"批量图像按缩放比例计算出的输入尺寸不一致, 请使用相同尺寸的图像或执行单图推理");
+            return 0;
+        }
+    }
+    return commonImageSize;
+}
+
 bool YoloeValForm::hasCurrentVpe(QString *errorMessage) const
 {
     if (!QFileInfo(vpePath()).isFile())
@@ -429,6 +507,11 @@ bool YoloeValForm::hasCurrentVpe(QString *errorMessage) const
         *errorMessage = QString(u8"模板框已改变, 请重新生成VPE");
         return false;
     }
+    if (!qFuzzyCompare(m_generatedZoomRatio, ui->DSB_ZoomRatio->value()))
+    {
+        *errorMessage = QString(u8"缩放比例已改变, 请重新生成VPE");
+        return false;
+    }
     return true;
 }
 
@@ -441,6 +524,7 @@ void YoloeValForm::invalidateVpe(const QString &reason)
     m_generatedBackbonePath.clear();
     m_generatedTemplatePath.clear();
     m_generatedPromptSignature.clear();
+    m_generatedZoomRatio = 0.0;
     appendLog(QString(u8"VPE已失效: %1, 请重新生成VPE").arg(reason));
 }
 
@@ -621,6 +705,7 @@ void YoloeValForm::processFinished(const int exitCode, const QProcess::ExitStatu
         m_generatedBackbonePath = currentBackbonePath();
         m_generatedTemplatePath = m_templateImagePath;
         m_generatedPromptSignature = promptSignature();
+        m_generatedZoomRatio = ui->DSB_ZoomRatio->value();
         appendLog(QString(u8"VPE生成完成: %1").arg(vpePath()));
         return;
     }
@@ -764,6 +849,13 @@ void YoloeValForm::generateVpe()
         return;
     }
 
+    const int inputImageSize = scaledImageSize(m_templateImagePath, &errorMessage);
+    if (inputImageSize <= 0)
+    {
+        showError(QString(u8"生成VPE失败"), errorMessage);
+        return;
+    }
+
     const QStringList arguments{QStringLiteral("generate-vpe"),
                                 QStringLiteral("--model"),
                                 modelPath,
@@ -776,8 +868,10 @@ void YoloeValForm::generateVpe()
                                 QStringLiteral("--output-vpe"),
                                 vpePath(),
                                 QStringLiteral("--imgsz"),
-                                QStringLiteral("1024")};
-    appendLog(QString(u8"开始生成YOLOE VPE"));
+                                QString::number(inputImageSize)};
+    appendLog(QString(u8"开始生成YOLOE VPE, 缩放比例 %1, 实际输入尺寸 %2")
+                  .arg(ui->DSB_ZoomRatio->value(), 0, 'f', 2)
+                  .arg(inputImageSize));
     startPythonOperation(RunningOperation::GenerateVpe, arguments);
 }
 
@@ -792,6 +886,7 @@ void YoloeValForm::deleteVpe()
     m_generatedBackbonePath.clear();
     m_generatedTemplatePath.clear();
     m_generatedPromptSignature.clear();
+    m_generatedZoomRatio = 0.0;
     appendLog(QString(u8"已清除VPE模板"));
 }
 
@@ -845,6 +940,12 @@ void YoloeValForm::runVpeInference(const bool singleImage)
         showError(QString(u8"YOLOE推理失败"), errorMessage);
         return;
     }
+    const int inputImageSize = inferenceImageSize(singleImage, &errorMessage);
+    if (inputImageSize <= 0)
+    {
+        showError(QString(u8"YOLOE推理失败"), errorMessage);
+        return;
+    }
     const QStringList arguments{QStringLiteral("infer-batch"),
                                 QStringLiteral("--model"),
                                 modelPath,
@@ -859,9 +960,14 @@ void YoloeValForm::runVpeInference(const bool singleImage)
                                 QStringLiteral("--max-det"),
                                 QString::number(ui->spinBox_MaxDetNum->value()),
                                 QStringLiteral("--imgsz"),
-                                QStringLiteral("1024")};
-    appendLog(singleImage ? QString(u8"启动YOLOE VPE单图推理: %1").arg(ui->listWidget->currentItem()->text())
-                          : QString(u8"启动YOLOE VPE批量推理"));
+                                QString::number(inputImageSize)};
+    appendLog(singleImage ? QString(u8"启动YOLOE VPE单图推理: %1, 缩放比例 %2, 实际输入尺寸 %3")
+                                .arg(ui->listWidget->currentItem()->text())
+                                .arg(ui->DSB_ZoomRatio->value(), 0, 'f', 2)
+                                .arg(inputImageSize)
+                          : QString(u8"启动YOLOE VPE批量推理, 缩放比例 %1, 实际输入尺寸 %2")
+                                .arg(ui->DSB_ZoomRatio->value(), 0, 'f', 2)
+                                .arg(inputImageSize));
     startPythonOperation(singleImage ? RunningOperation::InferSingle : RunningOperation::InferBatch, arguments);
 }
 
@@ -916,6 +1022,12 @@ void YoloeValForm::runBackboneInference(const bool singleImage)
         showError(QString(u8"Backbone推理失败"), errorMessage);
         return;
     }
+    const int inputImageSize = inferenceImageSize(singleImage, &errorMessage);
+    if (inputImageSize <= 0)
+    {
+        showError(QString(u8"Backbone推理失败"), errorMessage);
+        return;
+    }
     const QStringList arguments{QStringLiteral("infer-text-batch"),
                                 QStringLiteral("--model"),
                                 modelPath,
@@ -932,9 +1044,14 @@ void YoloeValForm::runBackboneInference(const bool singleImage)
                                 QStringLiteral("--max-det"),
                                 QString::number(ui->spinBox_MaxDetNum->value()),
                                 QStringLiteral("--imgsz"),
-                                QStringLiteral("1024")};
-    appendLog(singleImage ? QString(u8"启动YOLOE Backbone文本提示单图推理: %1, %2")
+                                QString::number(inputImageSize)};
+    appendLog(singleImage ? QString(u8"启动YOLOE Backbone文本提示单图推理: %1, %2, 缩放比例 %3, 实际输入尺寸 %4")
                                 .arg(className, ui->listWidget->currentItem()->text())
-                          : QString(u8"启动YOLOE Backbone文本提示批量推理: %1").arg(className));
+                                .arg(ui->DSB_ZoomRatio->value(), 0, 'f', 2)
+                                .arg(inputImageSize)
+                          : QString(u8"启动YOLOE Backbone文本提示批量推理: %1, 缩放比例 %2, 实际输入尺寸 %3")
+                                .arg(className)
+                                .arg(ui->DSB_ZoomRatio->value(), 0, 'f', 2)
+                                .arg(inputImageSize));
     startPythonOperation(singleImage ? RunningOperation::InferTextSingle : RunningOperation::InferTextBatch, arguments);
 }

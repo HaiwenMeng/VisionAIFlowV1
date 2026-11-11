@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QFile>
 #include <QIODevice>
+#include <QIcon>
 #include <QMessageBox>
 #include <QScreen>
 #include <QStyle>
@@ -33,6 +34,7 @@ void ConfigureModelSearchPath()
 int main(int argc, char *argv[])
 {
     QApplication application(argc, argv);
+    application.setWindowIcon(QIcon(QStringLiteral(":/ResourYolo/VisionAIFlow.ico")));
     application.setApplicationName(QStringLiteral("VisionAIFlowApp"));
     application.setOrganizationName(QStringLiteral("VisionAIFlow"));
     QDir::setCurrent(QCoreApplication::applicationDirPath());

@@ -105,7 +105,7 @@ TrainDataForm::TrainDataForm(QWidget *parent)
     ui->chartLoss->toInitChart(QString(u8"训练损失"));
     ui->chartMetrics->toSetXAxis(0, 1, 1, 10, QString(u8"轮次"));
     ui->chartLoss->toSetXAxis(0, 1, 1, 10, QString(u8"轮次"));
-    ui->chartMetrics->toSetYAxis(0, 1, 5, QString(u8"精度"));
+    ui->chartMetrics->toSetYAxis(-0.05, 1, 5, QString(u8"精度"));
     ui->chartLoss->toSetYAxis(0, 1, 5, QStringLiteral("Loss"));
     setRunning(false);
 }
@@ -530,7 +530,7 @@ void TrainDataForm::configureCharts()
                                       : QStringList{"Loss", "Box", "Seg", "Cls", "DFL"};
     ui->chartMetrics->removeAllPoints();
     ui->chartLoss->removeAllPoints();
-    ui->chartMetrics->toSetMinVal(1, 0);
+    ui->chartMetrics->toSetMinVal(1, -0.05);
     ui->chartMetrics->toSetMaxVal(1, 1);
     ui->chartLoss->toSetMinVal(1, 0);
     ui->chartLoss->toSetMaxVal(1, 1);

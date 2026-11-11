@@ -613,7 +613,7 @@ void YtChartView::toSetMaxVal(int type, int Value)
     }
 }
 
-void YtChartView::toSetMinVal(int type, int Value)
+void YtChartView::toSetMinVal(int type, double Value)
 {
     if (type == 0)
     {
