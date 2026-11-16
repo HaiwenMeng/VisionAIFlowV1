@@ -25,6 +25,7 @@ class BASE_ANNODISP_EXPORT BaseAnnoDisplayWidget : public QWidget
 public:
     explicit BaseAnnoDisplayWidget(QWidget *parent = nullptr);
 
+    static QImage readImage(const QString &imagePath, QString *errorMessage = nullptr);
     bool loadImage(const QString &imagePath, QString *errorMessage = nullptr);
     bool setImage(const QImage &image, QString *errorMessage = nullptr);
     void clearImage();

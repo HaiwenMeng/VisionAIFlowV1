@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LineAnnoForm</class>
+ <widget class="QWidget" name="LineAnnoForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1164</width>
+    <height>567</height>
+   </rect>
+  </property>
+  <layout class="QHBoxLayout" name="mainLayout" stretch="1,4">
+   <item>
+    <layout class="QVBoxLayout" name="listLayout" stretch="0,0,0,0,1,4">
+     <item>
+      <widget class="QPushButton" name="buttonImport">
+       <property name="text">
+        <string>导入图片</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelDirectory">
+       <property name="text">
+        <string>标注目录</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboDirectory"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelIncludedDirectories">
+       <property name="text">
+        <string>勾选参与数据集的目录</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QListWidget" name="includedDirectories"/>
+     </item>
+     <item>
+      <widget class="QListWidget" name="listImages"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="canvasLayout" stretch="4,0">
+     <item>
+      <widget class="BaseAnnoDisplayWidget" name="canvas" native="true"/>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="buttons">
+       <item>
+        <widget class="QPushButton" name="buttonDraw">
+         <property name="text">
+          <string>绘制线段</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="buttonDelete">
+         <property name="text">
+          <string>删除选中线段</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="buttonSave">
+         <property name="text">
+          <string>保存标注</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>BaseAnnoDisplayWidget</class>
+   <extends>QWidget</extends>
+   <header>BaseAnnoDisplayWidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

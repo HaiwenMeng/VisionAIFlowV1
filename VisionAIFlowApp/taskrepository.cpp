@@ -404,7 +404,8 @@ bool TaskRepository::IsYoloE(const TaskDefinition &task)
 
 bool TaskRepository::IsSupportedTrainingTask(const TaskDefinition &task)
 {
-    return IsDetection(task) || IsYoloE(task) || task.type == visionaiflow::domain::ProjectType::Classification ||
+    return IsDetection(task) || IsYoloE(task) || task.type == visionaiflow::domain::ProjectType::LineDetection ||
+           task.type == visionaiflow::domain::ProjectType::Classification ||
            task.type == visionaiflow::domain::ProjectType::InstanceSegmentation;
 }
 

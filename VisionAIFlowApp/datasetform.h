@@ -55,6 +55,9 @@ private:
     QVector<QString> trainingLabelNames() const;
     bool generateClassificationData(const QFileInfoList &directories);
     bool generateYoloData(const QFileInfoList &directories, int runIndex);
+    bool generateLineData(const QFileInfoList &directories);
+    void showLineData();
+    bool m_lineMode = false;
     bool m_yoloEMode = false;
     int m_backgroundFill = 128;
     int m_forcedRunIndex = -1;

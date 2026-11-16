@@ -18,6 +18,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QImageReader>
 #include <QRegularExpression>
 #include <QSet>
 #include <opencv2/imgproc.hpp>
@@ -222,6 +223,7 @@ void DataSetForm::setYoloEMode(bool enabled)
 void DataSetForm::setProjectType(visionaiflow::domain::ProjectType type)
 {
     using visionaiflow::domain::ProjectType;
+    m_lineMode = type == ProjectType::LineDetection;
     setYoloEMode(type == ProjectType::YoloE);
     switch (type)
     {
@@ -234,6 +236,9 @@ void DataSetForm::setProjectType(visionaiflow::domain::ProjectType type)
     case ProjectType::InstanceSegmentation:
     case ProjectType::YoloE:
         m_forcedRunIndex = 2;
+        break;
+    case ProjectType::LineDetection:
+        m_forcedRunIndex = 6;
         break;
     default:
         m_forcedRunIndex = -1;
@@ -263,6 +268,11 @@ QVector<QString> DataSetForm::trainingLabelNames() const
 
 void DataSetForm::toInitShow()
 {
+    if (m_lineMode)
+    {
+        showLineData();
+        return;
+    }
     toLoadData();
     if (m_forcedRunIndex >= 0)
     {
@@ -289,6 +299,131 @@ QFileInfoList DataSetForm::toGetCheckedDataSheetDirList()
         }
     }
     return checkedDirList;
+}
+
+bool DataSetForm::generateLineData(const QFileInfoList &directories)
+{
+    QVector<QJsonObject> samples;
+    for (const QFileInfo &directory : directories)
+    {
+        const QDir dir(directory.absoluteFilePath());
+        const QFileInfoList files = dir.entryInfoList({QStringLiteral("*.json")}, QDir::Files, QDir::Name);
+        for (const QFileInfo &info : files)
+        {
+            if (info.fileName() == QStringLiteral("DefineLabel.json"))
+            {
+                continue;
+            }
+            QFile file(info.absoluteFilePath());
+            QJsonParseError parseError;
+            if (!file.open(QIODevice::ReadOnly))
+            {
+                m_DataGenErrorMessage = QString(u8"无法读取标注: %1").arg(info.absoluteFilePath());
+                return false;
+            }
+            const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+            const QJsonObject root = document.object();
+            const QString imageName = root.value("imagePath").toString();
+            const QString imagePath = dir.filePath(imageName);
+            const QSize size = QImageReader(imagePath).size();
+            if (parseError.error != QJsonParseError::NoError || !document.isObject() || imageName.isEmpty() ||
+                QFileInfo(imageName).fileName() != imageName || !size.isValid() ||
+                root.value("imageWidth").toInt() != size.width() ||
+                root.value("imageHeight").toInt() != size.height() || !root.value("shapes").isArray() ||
+                root.value("shapes").toArray().isEmpty())
+            {
+                m_DataGenErrorMessage = QString(u8"标注无效或图像缺失、尺寸不符: %1").arg(info.absoluteFilePath());
+                return false;
+            }
+            for (const QJsonValue &value : root.value("shapes").toArray())
+            {
+                const QJsonObject shape = value.toObject();
+                const QJsonArray points = shape.value("points").toArray();
+                if (shape.value("shape_type").toString() != QStringLiteral("line") || points.size() != 2)
+                {
+                    m_DataGenErrorMessage = QString(u8"线段标注无效: %1").arg(info.absoluteFilePath());
+                    return false;
+                }
+                for (const QJsonValue &valuePoint : points)
+                {
+                    const QJsonArray point = valuePoint.toArray();
+                    if (point.size() != 2 || !point[0].isDouble() || !point[1].isDouble() || point[0].toDouble() < 0 ||
+                        point[1].toDouble() < 0 || point[0].toDouble() >= size.width() ||
+                        point[1].toDouble() >= size.height())
+                    {
+                        m_DataGenErrorMessage = QString(u8"线段坐标无效: %1").arg(info.absoluteFilePath());
+                        return false;
+                    }
+                }
+                if (points[0] == points[1])
+                {
+                    m_DataGenErrorMessage = QString(u8"线段端点重合: %1").arg(info.absoluteFilePath());
+                    return false;
+                }
+            }
+            samples.append(QJsonObject{{"image", QFileInfo(imagePath).absoluteFilePath()},
+                                       {"annotation", info.absoluteFilePath()}});
+        }
+    }
+    if (samples.size() < 2)
+    {
+        m_DataGenErrorMessage = QString(u8"至少需要两张已标注的图片");
+        return false;
+    }
+    std::mt19937 random(7);
+    std::shuffle(samples.begin(), samples.end(), random);
+    const int valCount = qBound(1, qRound(samples.size() * 0.3), static_cast<int>(samples.size()) - 1);
+    QJsonArray train;
+    QJsonArray val;
+    for (int index = 0; index < samples.size(); ++index)
+    {
+        (index < valCount ? val : train).append(samples[index]);
+    }
+    const QString root = QDir(TaskRepository::DataRoot()).filePath(m_ProcessName);
+    if (!QDir().mkpath(root))
+    {
+        m_DataGenErrorMessage = QString(u8"无法创建数据集目录: %1").arg(root);
+        return false;
+    }
+    QSaveFile file(QDir(root).filePath(QStringLiteral("dataset.json")));
+    const QByteArray bytes = QJsonDocument(QJsonObject{{"train", train}, {"val", val}}).toJson();
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+    {
+        m_DataGenErrorMessage = QString(u8"无法保存数据集: %1: %2").arg(file.fileName(), file.errorString());
+        return false;
+    }
+    return true;
+}
+
+void DataSetForm::showLineData()
+{
+    const QString path = QDir(TaskRepository::DataRoot()).filePath(m_ProcessName + QStringLiteral("/dataset.json"));
+    QFile file(path);
+    QJsonObject object;
+    if (file.open(QIODevice::ReadOnly))
+    {
+        object = QJsonDocument::fromJson(file.readAll()).object();
+    }
+    ui->TW_LabeSet->setRowCount(1);
+    const QStringList values{QStringLiteral("1"),
+                             QString(u8"线段"),
+                             QString::number(object.value("train").toArray().size()),
+                             QString::number(object.value("val").toArray().size()),
+                             QStringLiteral("0")};
+    for (int index = 0; index < values.size(); ++index)
+    {
+        ui->TW_LabeSet->setItem(0, index, new QTableWidgetItem(values[index]));
+    }
+    ui->ToolTreeWidget->clear();
+    for (const QString &split : {QStringLiteral("train"), QStringLiteral("val")})
+    {
+        auto *parent = new QTreeWidgetItem(ui->ToolTreeWidget, {split});
+        for (const QJsonValue &sample : object.value(split).toArray())
+        {
+            new QTreeWidgetItem(parent, {sample.toObject().value("annotation").toString()});
+        }
+    }
+    ui->ToolTreeWidget->expandAll();
 }
 
 bool DataSetForm::generateClassificationData(const QFileInfoList &directories)
@@ -1493,6 +1628,28 @@ QString DataSetForm::toGetRunType()
 
 int DataSetForm::toGetRunIndex()
 {
+    if (m_lineMode)
+    {
+        TaskDefinition task;
+        QString error;
+        if (!TaskRepository::LoadTask(m_ProcessName, &task, &error))
+        {
+            qWarning().noquote() << error;
+            return -1;
+        }
+        if (task.progress == QStringLiteral("data_failed"))
+        {
+            return -1;
+        }
+        const QString path = QDir(TaskRepository::DataRoot()).filePath(m_ProcessName + QStringLiteral("/dataset.json"));
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+        {
+            return -1;
+        }
+        const QJsonObject object = QJsonDocument::fromJson(file.readAll()).object();
+        return !object.value("train").toArray().isEmpty() && !object.value("val").toArray().isEmpty() ? 6 : -1;
+    }
     toLoadData();
     if (m_forcedRunIndex >= 0 && m_loadedRunIndex != m_forcedRunIndex)
     {
@@ -1529,6 +1686,32 @@ int DataSetForm::toGetRunIndex()
 
 void DataSetForm::on_PB_RunDataGen_clicked()
 {
+    if (m_lineMode)
+    {
+        m_DataGenErrorMessage.clear();
+        if (!generateLineData(toGetCheckedDataSheetDirList()))
+        {
+            qWarning().noquote() << m_DataGenErrorMessage;
+            QString error;
+            if (!TaskRepository::UpdateProgress(m_ProcessName, QStringLiteral("data_failed"), &error))
+            {
+                qWarning().noquote() << error;
+                m_DataGenErrorMessage += QStringLiteral("\n") + error;
+            }
+            QMessageBox::critical(this, QString(u8"数据集生成失败"), m_DataGenErrorMessage);
+            return;
+        }
+        QString error;
+        if (!TaskRepository::UpdateProgress(m_ProcessName, QStringLiteral("dataset_ready"), &error))
+        {
+            qWarning().noquote() << error;
+            QMessageBox::critical(this, QString(u8"数据集生成失败"), error);
+            return;
+        }
+        showLineData();
+        QMessageBox::information(this, QString(u8"数据集"), QString(u8"数据集生成完成"));
+        return;
+    }
     if (toGetCheckedDataSheetDirList().size() < 1)
     {
         qWarning() << u8"未勾选任何标注目录, 无法生成数据集";
@@ -1589,10 +1772,17 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
     if (ui->comboBox->currentIndex() == 4)
     {
 
+        QString errorMessage;
+        const QImage temim = BaseAnnoDisplayWidget::readImage(item->text(0), &errorMessage);
+        if (temim.isNull())
+        {
+            QMessageBox::warning(this, QString(u8"图像读取失败"), errorMessage);
+            return;
+        }
+
         m_OverPlayShow.toClearData();
         int getindex = item->text(0).lastIndexOf(".");
         m_YtRoiLabelSet.toLoadJsonFile(item->text(0).left(getindex) + ".json");
-        QImage temim = QImage(item->text(0));
         qDebug() << item->text(0).left(getindex) + ".json" << m_YtRoiLabelSet.m_SetLabeset.size();
 
         if (m_YtRoiLabelSet.m_SetLabeset.size() > 0)
@@ -1617,8 +1807,14 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
     //
     m_YtRoiLabelSet.toLoadJsonFile(item->text(0));
     //
-    int getindex = item->text(0).lastIndexOf("/");
-    //
+    const QString imagePath = QFileInfo(item->text(0)).dir().filePath(m_YtRoiLabelSet.m_imagePath);
+    QString errorMessage;
+    if (!ui->ytRoiShowDisp->loadImage(imagePath, &errorMessage))
+    {
+        QMessageBox::warning(this, QString(u8"图像读取失败"), errorMessage);
+        return;
+    }
+
     if (ui->comboBox->currentIndex() == 0)
     {
         m_YtRoiLabelSet.toGenDetcOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
@@ -1635,7 +1831,6 @@ void DataSetForm::slot_ItemDoubleClicked(QTreeWidgetItem *item, int colum)
     {
         m_YtRoiLabelSet.toGenFourPosOveplay(m_OverPlayShow, m_YtYoloSetPro.m_NameList, m_YtYoloSetPro.m_ClorDefine);
     }
-    ui->ytRoiShowDisp->toSetImage(QImage(item->text(0).left(getindex) + "/" + m_YtRoiLabelSet.m_imagePath));
     ui->ytRoiShowDisp->toUpdateShow();
 }
 

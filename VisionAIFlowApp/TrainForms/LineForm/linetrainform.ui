@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LineTrainForm</class>
+ <widget class="QWidget" name="LineTrainForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>429</width>
+    <height>283</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="layout">
+   <item>
+    <layout class="QHBoxLayout" name="settings">
+     <item>
+      <widget class="QLabel" name="labelEpoch">
+       <property name="text">
+        <string>训练轮数</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="epochs">
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>10000</number>
+       </property>
+       <property name="value">
+        <number>400</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelRate">
+       <property name="text">
+        <string>学习率</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="rate">
+       <property name="decimals">
+        <number>6</number>
+       </property>
+       <property name="minimum">
+        <double>0.000001000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.000010000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000100000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="start">
+       <property name="text">
+        <string>开始训练</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="stop">
+       <property name="text">
+        <string>停止训练</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="progress"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="charts">
+     <item>
+      <widget class="YtChartView" name="metrics" native="true"/>
+     </item>
+     <item>
+      <widget class="YtChartView" name="loss" native="true"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="log">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>YtChartView</class>
+   <extends>QWidget</extends>
+   <header>ytchartview.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

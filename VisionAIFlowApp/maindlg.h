@@ -22,7 +22,9 @@ class YoloeTrainForm;
 class YoloeValForm;
 class YoloValForm;
 class SystemForm;
-
+class LineAnnoForm;
+class LineTrainForm;
+class LineInferForm;
 class MainDlg final : public QWidget
 {
     Q_OBJECT
@@ -47,6 +49,7 @@ private slots:
 private:
     bool RequireSupportedTask();
     bool CurrentTaskIsYoloE() const;
+    bool CurrentTaskIsLine() const;
     bool RequireGeneratedDataset();
     void SetCurrentNavButton(QPushButton *button);
     void ShowUnavailable(const QString &featureName);
@@ -65,5 +68,8 @@ private:
     YoloeValForm *m_yoloeValForm;
     YoloValForm *m_yoloValForm;
     SystemForm *m_systemForm;
+    LineAnnoForm *m_lineAnnoForm;
+    LineTrainForm *m_lineTrainForm;
+    LineInferForm *m_lineInferForm;
     QString m_taskName;
 };

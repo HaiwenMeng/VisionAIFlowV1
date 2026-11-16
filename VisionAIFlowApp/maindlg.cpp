@@ -13,6 +13,9 @@
 #include "AnnoForms/ClassForms/classificationlabelform.h"
 #include "InferForms/SegForms/YoloeValForm.h"
 #include "InferForms/DetecForms/yolovalform.h"
+#include "AnnoForms/LineForm/lineannoform.h"
+#include "TrainForms/LineForm/linetrainform.h"
+#include "InferForms/LineForm/lineinferform.h"
 
 #include <QDebug>
 #include <QEvent>
@@ -29,7 +32,8 @@ MainDlg::MainDlg(QWidget *parent)
     : QWidget(parent), ui(new Ui::MainDlg), m_projectForm(new ProJectForm(this)), m_dataSetForm(new DataSetForm(this)),
       m_trainDataForm(new TrainDataForm(this)), m_commonSetForm(new CommonSetForm(this)),
       m_yoloeTrainForm(new YoloeTrainForm(this)), m_yoloeValForm(new YoloeValForm(this)),
-      m_yoloValForm(new YoloValForm(this)), m_systemForm(new SystemForm(this))
+      m_yoloValForm(new YoloValForm(this)), m_systemForm(new SystemForm(this)), m_lineAnnoForm(new LineAnnoForm(this)),
+      m_lineTrainForm(new LineTrainForm(this)), m_lineInferForm(new LineInferForm(this))
 {
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     ui->setupUi(this);
@@ -61,6 +65,9 @@ MainDlg::MainDlg(QWidget *parent)
                                  m_yoloeValForm,
                                  m_yoloValForm,
                                  m_commonSetForm,
+                                 m_lineAnnoForm,
+                                 m_lineTrainForm,
+                                 m_lineInferForm,
                                  m_systemForm};
     for (QWidget *page : pages)
     {
@@ -150,7 +157,8 @@ void MainDlg::OnTaskSelected(const QString &taskName)
 
 void MainDlg::on_PB_ProJectMange_clicked()
 {
-    if (!m_trainDataForm->isrunstate() || !m_yoloeTrainForm->isIdle() || !m_yoloValForm->isIdle())
+    if (!m_trainDataForm->isrunstate() || !m_yoloeTrainForm->isIdle() || !m_yoloValForm->isIdle() ||
+        !m_lineTrainForm->isIdle() || !m_lineInferForm->isIdle())
     {
         ReportError(QString(u8"正在训练或推理, 无法切换项目"));
         return;
@@ -163,11 +171,23 @@ void MainDlg::on_PB_ProJectMange_clicked()
 
 void MainDlg::on_PB_LabSet_clicked()
 {
+    if (!m_lineTrainForm->isIdle())
+    {
+        ReportError(QString(u8"训练进行中, 无法修改标注"));
+        return;
+    }
     if (!RequireSupportedTask())
     {
         return;
     }
 
+    if (CurrentTaskIsLine())
+    {
+        m_lineAnnoForm->initialize(m_taskName);
+        ui->stackedWidget->setCurrentWidget(m_lineAnnoForm);
+        SetCurrentNavButton(ui->PB_LabSet);
+        return;
+    }
     m_commonSetForm->setTaskName(m_taskName);
     ui->stackedWidget->setCurrentWidget(m_commonSetForm);
     SetCurrentNavButton(ui->PB_LabSet);
@@ -175,6 +195,11 @@ void MainDlg::on_PB_LabSet_clicked()
 
 void MainDlg::on_PB_SemiLabSet_clicked()
 {
+    if (CurrentTaskIsLine())
+    {
+        on_PB_LabSet_clicked();
+        return;
+    }
     if (!RequireSupportedTask())
     {
         return;
@@ -232,7 +257,7 @@ void MainDlg::on_PB_SemiLabSet_clicked()
 
 void MainDlg::on_PB_DataSet_clicked()
 {
-    if (!m_trainDataForm->isrunstate() || !m_yoloeTrainForm->isIdle())
+    if (!m_trainDataForm->isrunstate() || !m_yoloeTrainForm->isIdle() || !m_lineTrainForm->isIdle())
     {
         ReportError(QString(u8"训练进行中, 无法修改数据集"));
         return;
@@ -260,6 +285,14 @@ void MainDlg::on_PB_TrainPro_clicked()
 {
     if (!RequireSupportedTask() || !RequireGeneratedDataset())
     {
+        return;
+    }
+
+    if (CurrentTaskIsLine())
+    {
+        m_lineTrainForm->initialize(m_taskName);
+        ui->stackedWidget->setCurrentWidget(m_lineTrainForm);
+        SetCurrentNavButton(ui->PB_TrainPro);
         return;
     }
 
@@ -292,6 +325,14 @@ void MainDlg::on_PB_ValPro_clicked()
 {
     if (!RequireSupportedTask() || !RequireGeneratedDataset())
     {
+        return;
+    }
+
+    if (CurrentTaskIsLine())
+    {
+        m_lineInferForm->initialize(m_taskName);
+        ui->stackedWidget->setCurrentWidget(m_lineInferForm);
+        SetCurrentNavButton(ui->PB_ValPro);
         return;
     }
 
@@ -345,6 +386,14 @@ bool MainDlg::CurrentTaskIsYoloE() const
     QString errorMessage;
     return !m_taskName.isEmpty() && TaskRepository::LoadTask(m_taskName, &task, &errorMessage) &&
            TaskRepository::IsYoloE(task);
+}
+
+bool MainDlg::CurrentTaskIsLine() const
+{
+    TaskDefinition task;
+    QString errorMessage;
+    return !m_taskName.isEmpty() && TaskRepository::LoadTask(m_taskName, &task, &errorMessage) &&
+           task.type == visionaiflow::domain::ProjectType::LineDetection;
 }
 
 bool MainDlg::RequireGeneratedDataset()

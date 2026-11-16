@@ -2,6 +2,7 @@
 
 #include <QDebug>
 #include <QFontMetrics>
+#include <QImageReader>
 #include <QKeyEvent>
 #include <QLinearGradient>
 #include <QLineF>
@@ -39,21 +40,26 @@ BaseAnnoDisplayWidget::BaseAnnoDisplayWidget(QWidget *parent) : QWidget(parent)
     setMinimumSize(520, 380);
 }
 
-bool BaseAnnoDisplayWidget::loadImage(const QString &imagePath, QString *errorMessage)
+QImage BaseAnnoDisplayWidget::readImage(const QString &imagePath, QString *errorMessage)
 {
-    QImage image;
-    if (!image.load(imagePath))
+    QImageReader reader(imagePath);
+    QImage image = reader.read();
+    if (image.isNull())
     {
-        const QString message = QString(u8"无法加载图像文件: %1").arg(imagePath);
+        const QString message = QString(u8"无法加载图像文件 %1: %2").arg(imagePath, reader.errorString());
         qCritical().noquote() << message;
         if (errorMessage != nullptr)
         {
             *errorMessage = message;
         }
-        return false;
     }
+    return image;
+}
 
-    return setImage(image, errorMessage);
+bool BaseAnnoDisplayWidget::loadImage(const QString &imagePath, QString *errorMessage)
+{
+    const QImage image = readImage(imagePath, errorMessage);
+    return !image.isNull() && setImage(image, errorMessage);
 }
 
 bool BaseAnnoDisplayWidget::setImage(const QImage &image, QString *errorMessage)
@@ -366,7 +372,10 @@ void BaseAnnoDisplayWidget::paintEvent(QPaintEvent *event)
         {
             painter.setPen(QPen(QColor(255, 214, 74, 210), 1.5));
             painter.setBrush(QColor(255, 214, 74));
-            const QVector<QPointF> handles = {box.topLeft(), box.topRight(), box.bottomLeft(), box.bottomRight()};
+            const QVector<QPointF> handles =
+                annotation.shapeType == BaseAnnoShapeType::Line
+                    ? QVector<QPointF>(widgetPolygon.begin(), widgetPolygon.end())
+                    : QVector<QPointF>{box.topLeft(), box.topRight(), box.bottomLeft(), box.bottomRight()};
             for (const QPointF &point : handles)
             {
                 painter.drawRoundedRect(QRectF(point.x() - 4.0, point.y() - 4.0, 8.0, 8.0), 2, 2);
@@ -472,11 +481,17 @@ void BaseAnnoDisplayWidget::paintEvent(QPaintEvent *event)
 
     if (m_draggingRect && m_mousePressed)
     {
-        QRect dragRect(m_pressWidgetPos, m_currentWidgetPos);
-        dragRect = dragRect.normalized();
         painter.setPen(QPen(QColor(77, 141, 255), 2.0, Qt::DashLine));
-        painter.setBrush(QColor(77, 141, 255, 36));
-        painter.drawRoundedRect(dragRect, 3, 3);
+        if (m_annotationDrawingEnabled && m_drawingShape == BaseAnnoShapeType::Line)
+        {
+            painter.drawLine(m_pressWidgetPos, m_currentWidgetPos);
+        }
+        else
+        {
+            const QRect dragRect = QRect(m_pressWidgetPos, m_currentWidgetPos).normalized();
+            painter.setBrush(QColor(77, 141, 255, 36));
+            painter.drawRoundedRect(dragRect, 3, 3);
+        }
     }
     else if (m_tempPreview.hasRect && m_tempPreview.promptRectImage.isValid())
     {
@@ -685,6 +700,12 @@ void BaseAnnoDisplayWidget::mouseReleaseEvent(QMouseEvent *event)
 
     if (emitRect)
     {
+        if (m_annotationDrawingEnabled && m_drawingShape == BaseAnnoShapeType::Line)
+        {
+            createAnnotationFromPoints(QPolygonF{m_pressImagePos, releaseImagePoint});
+            update();
+            return;
+        }
         const QRectF imageRect = normalizedImageRect(m_pressImagePos, releaseImagePoint);
         if (imageRect.width() >= 2.0 && imageRect.height() >= 2.0)
         {
@@ -831,10 +852,18 @@ int BaseAnnoDisplayWidget::findAnnotationAtImagePoint(const QPointF &imagePoint)
         {
             return index;
         }
-        if (annotation.shapeType == BaseAnnoShapeType::Line &&
-            imagePolygon.boundingRect().adjusted(-5, -5, 5, 5).contains(imagePoint))
+        if (annotation.shapeType == BaseAnnoShapeType::Line && imagePolygon.size() == 2)
         {
-            return index;
+            const QPointF start = imageToWidget(imagePolygon.at(0));
+            const QPointF end = imageToWidget(imagePolygon.at(1));
+            const QPointF cursor = imageToWidget(imagePoint);
+            const QPointF direction = end - start;
+            const double lengthSquared = QPointF::dotProduct(direction, direction);
+            const double position = qBound(0.0, QPointF::dotProduct(cursor - start, direction) / lengthSquared, 1.0);
+            if (QLineF(cursor, start + position * direction).length() <= 7.0)
+            {
+                return index;
+            }
         }
         if (imagePolygon.containsPoint(imagePoint, Qt::OddEvenFill))
         {

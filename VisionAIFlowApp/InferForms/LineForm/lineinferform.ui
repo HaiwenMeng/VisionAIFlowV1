@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LineInferForm</class>
+ <widget class="QWidget" name="LineInferForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1137</width>
+    <height>615</height>
+   </rect>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout" columnstretch="2,6,2" columnminimumwidth="0,0,0">
+     <item row="0" column="0">
+      <layout class="QVBoxLayout" name="left">
+       <item>
+        <widget class="QListWidget" name="images"/>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="filesLayout">
+         <item>
+          <widget class="QPushButton" name="buttonAdd">
+           <property name="text">
+            <string>添加图像</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="buttonClear">
+           <property name="text">
+            <string>清空列表</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QPushButton" name="run">
+         <property name="text">
+          <string>开始推理</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="0" column="1">
+      <layout class="QVBoxLayout" name="right" stretch="0,1">
+       <item>
+        <layout class="QHBoxLayout" name="layers">
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>置信度</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dSpinBox_conf">
+           <property name="decimals">
+            <number>4</number>
+           </property>
+           <property name="maximum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.010000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="showMask">
+           <property name="text">
+            <string>模型边缘 mask (青色)</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="showLines">
+           <property name="text">
+            <string>拟合线 (红色)</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="BaseAnnoDisplayWidget" name="canvas" native="true"/>
+       </item>
+      </layout>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPlainTextEdit" name="log">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>BaseAnnoDisplayWidget</class>
+   <extends>QWidget</extends>
+   <header>BaseAnnoDisplayWidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
